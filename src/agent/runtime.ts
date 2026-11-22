@@ -14,7 +14,7 @@ import type { Provider } from "../providers/types.ts";
 import { Skills } from "../skills/index.ts";
 import { Memory } from "../memory/index.ts";
 
-export interface RunOptions { mode?: "auto" | "plan"; permission?: Mode; approval?: Approval; approver?: Approver; maxTurns?: number; dry?: boolean; verify?: "auto" | "none" | "full"; log?: (s: string) => void }
+export interface RunOptions { maxCost?: number; mode?: "auto" | "plan"; permission?: Mode; approval?: Approval; approver?: Approver; maxTurns?: number; dry?: boolean; verify?: "auto" | "none" | "full"; log?: (s: string) => void }
 export interface RunReport {
   session: string; task: string; level: number; outcome: string; summary?: string;
   turns: number; requests: number; usage: Usage; tokensBySource: Record<string, number>; firstRequestInput: number;
@@ -106,6 +106,7 @@ export class Agent {
       const res = await this.provider.complete({ system: ctx.system, prefix: ctx.prefix(), messages: [{ role: "user", content: user }], cacheKey: this.session, maxTokens: 16000 });
       report.requests++; report.usage = addUsage(report.usage, res.usage);
       if (turn === 1) report.firstRequestInput = totalInput(res.usage);
+      const overBudget = this.opts.maxCost !== undefined && (report.usage.cost?.total || 0) > this.opts.maxCost;
       ctx.record({ bySource: { system: Math.ceil(ctx.system.length / 4), project: Math.ceil(ctx.prefix().length / 4), ...bySource }, usage: res.usage, model: res.model, ms: res.ms });
       this.safety.log({ type: "model", turn, usage: res.usage, ms: res.ms, chars: res.text.length });
       this.log(`turn ${turn}: in ${totalInput(res.usage)} (cached ${res.usage.cacheRead}) out ${res.usage.output}`);
@@ -150,6 +151,7 @@ export class Agent {
       if (done) { report.outcome = "done"; report.summary = done; break; }
       if (!edits.length && !cmds.length) { failures++; ctx.observe("format", "Your reply contained no edits and no @commands. Reply only with actions."); }
       if (failures >= 6) { report.outcome = "gave-up"; report.summary = "too many failed steps"; break; }
+      if (overBudget) { report.outcome = "budget"; report.summary = `cost limit $${this.opts.maxCost} reached`; break; }
     }
     if (!report.outcome) { report.outcome = "turn-limit"; }
     if (this.opts.dry && report.filesChanged.length) { this.safety.undo(); report.outcome += " (dry run: reverted)"; }

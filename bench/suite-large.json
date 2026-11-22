@@ -1,0 +1,122 @@
+[
+ {
+  "id": "CK1",
+  "repo": "https://github.com/pallets/click",
+  "commit": "c53d3732b^",
+  "fix": "c53d3732b",
+  "lang": "python",
+  "level": 2,
+  "prompt": "Option help and error messages are wrong when an option's `envvar` is a sequence of names or empty. With `show_envvar=True`: an empty `envvar` (`[]`, `\"\"`) must render exactly like no `envvar` (so with `auto_envvar_prefix=\"WEATHER\"` an option `--units` shows `[env var: WEATHER_UNITS]`, and without a prefix shows no env var part). In the missing-required-option error hint, the env vars must be listed like `'--units' (env var: 'WEATHER_UNITS', 'UNITS')` for a list or tuple, `'--units' (env var: 'UNITS')` for a single name, and just `'--units'` when `envvar` is empty.",
+  "gold": [
+   "src/click/core.py"
+  ],
+  "hiddenFromFix": [
+   "tests/test_options.py"
+  ],
+  "accept": "PYTHONPATH=src python3 -m pytest -q -p no:cacheprovider tests/test_options.py"
+ },
+ {
+  "id": "CK2",
+  "repo": "https://github.com/pallets/click",
+  "commit": "90a2973f8^",
+  "fix": "90a2973f8",
+  "lang": "python",
+  "level": 2,
+  "prompt": "Add a `context_settings` parameter to `CliRunner.invoke` in click's testing module. It is passed through to the context that the invoked command creates (the same settings a command accepts via `context_settings=`), so tests can, for example, invoke with `context_settings={\"color\": True}`. When `invoke` is not given an explicit `color` argument, ANSI styling in the captured output (including output from `echo_via_pager`, `prompt` and `confirm`) must follow the context's color setting.",
+  "gold": [
+   "src/click/testing.py"
+  ],
+  "hiddenFromFix": [
+   "tests/test_termui.py",
+   "tests/test_testing.py"
+  ],
+  "accept": "PYTHONPATH=src python3 -m pytest -q -p no:cacheprovider tests/test_termui.py tests/test_testing.py"
+ },
+ {
+  "id": "CK3",
+  "repo": "https://github.com/pallets/click",
+  "commit": "7996a89c5^",
+  "fix": "7996a89c5",
+  "lang": "python",
+  "level": 3,
+  "prompt": "Help pages break lines inside hyphenated words, e.g. `--avoid-motorways` can be split after a hyphen. Change click's help text wrapping so that a line only ever breaks between whitespace-separated words, never after a hyphen inside a word; a word longer than the available width is not cut but placed on a line of its own; ANSI escape sequences (styled text, including in the initial indent) do not count toward the width and every escape sequence survives in order; and the `Usage:` prefix does not push a short argument list like `[OPTIONS] CITY` onto a second line.",
+  "gold": [
+   "src/click/_textwrap.py",
+   "src/click/formatting.py"
+  ],
+  "hiddenFromFix": [
+   "tests/test_compat.py",
+   "tests/test_formatting.py"
+  ],
+  "accept": "PYTHONPATH=src python3 -m pytest -q -p no:cacheprovider tests/test_compat.py tests/test_formatting.py"
+ },
+ {
+  "id": "CB1",
+  "repo": "https://github.com/spf13/cobra",
+  "commit": "ad460ea8f^",
+  "fix": "ad460ea8f",
+  "lang": "go",
+  "level": 2,
+  "prompt": "Add a positional-argument validator `NoDuplicateArgs` to cobra, usable like `ExactArgs`/`MinimumNArgs` as a command's `Args`. It rejects repeated arguments with the error message `duplicate argument \"<arg>\" for \"<command name>\"` (for example `duplicate argument \"one\" for \"c\"`), accepts distinct arguments, and works together with commands that also define `ValidArgs` (for example when combined via `MatchAll`).",
+  "gold": [
+   "args.go"
+  ],
+  "hiddenFromFix": [
+   "args_test.go"
+  ],
+  "accept": "go test . -run '^(TestNoDuplicateArgs|TestNoDuplicateArgs_WithDuplicateArgs|TestNoDuplicateArgs_WithValidOnly_WithInvalidArgs|TestNoDuplicateArgs_WithValid_WithDuplicateArgs|TestOnlyValidArgs_WithInvalidArgs)$'"
+ },
+ {
+  "id": "CB2",
+  "repo": "https://github.com/spf13/cobra",
+  "commit": "24ada7fe7^",
+  "fix": "24ada7fe7",
+  "lang": "go",
+  "level": 2,
+  "prompt": "When a program has no sub-commands its root command can accept positional arguments, but cobra adds the default `completion` command anyway, which turns the root into a command with a sub-command so it no longer accepts arguments. Change cobra so that for a root command without other sub-commands the default `completion` command is only added when it is actually being invoked (`prog completion ...`) or when it is itself being completed; programs that do have sub-commands keep the current behaviour.",
+  "gold": [
+   "command.go",
+   "completions.go"
+  ],
+  "hiddenFromFix": [
+   "completions_test.go"
+  ],
+  "accept": "go test . -run '^(TestCompleteCompletion|TestDefaultCompletionCmd|TestDisableDescriptions|TestInitDefaultCompletionCmd)$'"
+ },
+ {
+  "id": "CB3",
+  "repo": "https://github.com/spf13/cobra",
+  "commit": "6dec1ae26^",
+  "fix": "6dec1ae26",
+  "lang": "go",
+  "level": 2,
+  "prompt": "Allow customising the default ShellCompDirective that cobra uses when no completion function provides one (today it is always `ShellCompDirectiveDefault`). Add `func (c *CompletionOptions) SetDefaultShellCompDirective(d ShellCompDirective)`. The setting applies to the command and is inherited by its sub-commands from the nearest ancestor that set it; a sub-command can reset it by setting `ShellCompDirectiveDefault`. It must affect flag-value and argument completion.",
+  "gold": [
+   "completions.go"
+  ],
+  "hiddenFromFix": [
+   "completions_test.go"
+  ],
+  "accept": "go test . -run '^(TestCustomDefaultShellCompDirective|TestInitDefaultCompletionCmd)$'"
+ },
+ {
+  "id": "K2",
+  "git": "/home/user/_z_websites_kadd-academy",
+  "commit": "3225350",
+  "link": [
+   "frontend/node_modules"
+  ],
+  "lang": "tsx",
+  "level": 3,
+  "prompt": "Add a new FAQ page at /<locale>/<design>/faq with its own title and at least three question-and-answer items, with the text in all three languages (English, Arabic, Kurdish Sorani), and link it from the site header navigation.",
+  "gold": [
+   "frontend/src/lib/i18n/en.ts",
+   "frontend/src/lib/i18n/ar.ts",
+   "frontend/src/lib/i18n/ckb.ts"
+  ],
+  "hidden": {
+   "accept-faq.sh": "K2/accept.sh"
+  },
+  "accept": "bash accept-faq.sh"
+ }
+]

@@ -12,12 +12,13 @@ export async function runCli(root: string, rest: () => string[], opt: (n: string
   const approval = (opt("--approve", "risky") as any);
   const permission = (opt("--permission", "workspace-write") as any);
   const turnsOpt = opt("--turns"); const maxTurns = turnsOpt ? +turnsOpt : undefined;
+  const maxCostOpt = opt("--max-cost"); const maxCost = maxCostOpt ? +maxCostOpt : undefined;
   const dry = flag("--dry"), quiet = flag("--quiet"), json = flag("--json");
   const task = rest().join(" ").trim();
   if (!task) { console.log('usage: nexus run "<task>" [--model provider:model] [--mode plan] [--approve always|risky|never] [--permission read-only|workspace-write|full] [--dry] [--json]'); return; }
   const repo = await new Repo(root).init();
   await repo.index();
-  const agent = new Agent(repo, createProvider(spec), { mode, approval, permission, approver: ttyApprover(), maxTurns, dry, log: quiet ? undefined : (s) => console.error(`[nexus] ${s}`) });
+  const agent = new Agent(repo, createProvider(spec), { mode, approval, permission, approver: ttyApprover(), maxTurns, maxCost, dry, log: quiet ? undefined : (s) => console.error(`[nexus] ${s}`) });
   const r = await agent.run(task);
   if (json) { console.log(JSON.stringify(r, null, 1)); return; }
   const u = r.usage;

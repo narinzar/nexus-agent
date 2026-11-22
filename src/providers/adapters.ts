@@ -45,6 +45,7 @@ export function openaiCompatible(model: string, opts: { id?: string; baseUrl?: s
       const body: any = { model, messages, ...(req.maxTokens ? { max_completion_tokens: req.maxTokens } : {}), ...(req.temperature !== undefined ? { temperature: req.temperature } : {}) };
       if (req.tools?.length) body.tools = req.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
       if (req.cacheKey && baseUrl.includes("api.openai.com")) body.prompt_cache_key = req.cacheKey;
+      if (baseUrl.includes("openrouter.ai")) body.usage = { include: true }; // OpenRouter returns the charged cost
       const j = await postJson(`${baseUrl}/chat/completions`, apiKey ? { authorization: `Bearer ${apiKey}` } : {}, body);
       const m = j.choices?.[0]?.message || {}; const u = j.usage || {};
       const cached = u.prompt_tokens_details?.cached_tokens || 0;
