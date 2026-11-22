@@ -30,8 +30,9 @@ function prepare(t: Task, dir: string) {
 
 /** Real upstream repositories are cloned once per machine (blob-less) and reused. */
 function repoCache(url: string): string {
-  const p = path.join(os.tmpdir(), "nexus-bench-repos", url.split("/").slice(-2).join("__"));
-  if (!fs.existsSync(p)) execFileSync("git", ["clone", "-q", "--filter=blob:none", url, p], { stdio: "inherit" });
+  // full clone: local clones made from a blob-less (partial) clone cannot read file contents
+  const p = path.join(os.tmpdir(), "nexus-bench-repos", url.split("/").slice(-2).join("__") + "__full");
+  if (!fs.existsSync(p)) execFileSync("git", ["clone", "-q", url, p], { stdio: "inherit" });
   return p;
 }
 
@@ -102,7 +103,8 @@ export async function benchCli(_root: string, args: string[], opt: (n: string, d
     prepare(t, dir);
     const t0 = Date.now();
     let part: Partial<Result>;
-    try { part = v === "none" ? { outcome: "no agent (suite validation: acceptance must fail)" } : v.startsWith("nexus") ? runNexus(t, dir, v.includes("@") ? v.slice(v.indexOf("@") + 1) : model, maxCost) : runClaudeCode(t, dir, ccModel); } catch (e: any) { part = { outcome: `error: ${e.message.slice(0, 200)}`, requests: 0, totalInput: 0, output: 0 }; }
+    if (v === "oracle" && t.fix) execFileSync("git", ["checkout", "-q", t.fix, "--", ...t.gold], { cwd: dir }); // apply the real upstream fix
+    try { part = v === "none" ? { outcome: "no agent (suite validation: acceptance must fail)" } : v === "oracle" ? { outcome: "upstream fix applied (suite validation: acceptance must pass)" } : v.startsWith("nexus") ? runNexus(t, dir, v.includes("@") ? v.slice(v.indexOf("@") + 1) : model, maxCost) : runClaudeCode(t, dir, ccModel); } catch (e: any) { part = { outcome: `error: ${e.message.slice(0, 200)}`, requests: 0, totalInput: 0, output: 0 }; }
     const ms = Date.now() - t0;
     const changed = changedFiles(dir);
     for (const [dest, src] of Object.entries(t.hidden || {})) { fs.mkdirSync(path.dirname(path.join(dir, dest)), { recursive: true }); fs.copyFileSync(path.join(HERE, "bench/hidden", src), path.join(dir, dest)); }
