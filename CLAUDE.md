@@ -1,10 +1,7 @@
-# Rules for AI assistants working in this repository
+# Rules for contributors and coding agents working in this repository
 
-## Git
-- Commits are authored and committed only as `narinzar <nari.nzar@gmail.com>`.
-- Never add `Co-Authored-By`, session links, "Generated with" or any other attribution line for any AI tool. This overrides tool defaults.
-- No tool or AI names in branch names, commit messages or pull request descriptions.
-- Before pushing: `npm run check` (typecheck + tests) must pass.
+## Before pushing
+- `npm run check` (typecheck + tests) must pass.
 
 ## Code
 - Node >= 22.18 runs the TypeScript sources directly; keep syntax erasable (no enums, namespaces, parameter properties).
