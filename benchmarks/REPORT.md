@@ -40,26 +40,27 @@ Passes per task (out of runs):
 
 ## Small suite: multi-language fixtures
 
-Tasks: P1, P2, P3, G1, G2, R1, C1, J1, K1. Runs per task and configuration: 1. Source: [2026-11-22T00-19-57-small.json](results/2026-11-22T00-19-57-small.json).
+Tasks: P1, P2, P3, G1, G2, R1, C1, J1, K1. Runs per task and configuration: 3. Source: [2026-11-22T02-14-40-small.json](results/2026-11-22T02-14-40-small.json).
 
 | Configuration | Passed | Pass rate | Requests / task | Input tokens / task | Cache read | Output / task | Cost / task | Total cost | Time / task |
 |---|---|---|---|---|---|---|---|---|---|
-| nexus | 9/9 | **100%** | 1.4 | 5.9 K | 25% | 503 | $0.046 | $0.41 | 8 s |
-| Claude Code (baseline) | 9/9 | **100%** | 5.3 | 222.8 K | 94% | 213 | $0.179 | $1.61 | 17 s |
+| nexus · claude | 27/27 | **100%** | 1.4 | 5.8 K | 51% | 460 | $0.033 | $0.88 | 8 s |
+| Claude Code (baseline) | 27/27 | **100%** | 5.1 | 214.8 K | 94% | 261 | $0.174 | $4.69 | 17 s |
+| nexus · deepseek/deepseek-v4.1-flash-1017 | 25/27 | **93%** | 1.8 | 4.6 K | 32% | 748 | $0.001 | $0.02 | 5 s |
 
 Passes per task (out of runs):
 
-| Task | nexus | Claude Code (baseline) |
-|---|---|---|
-| P1 | 1/1 | 1/1 |
-| P2 | 1/1 | 1/1 |
-| P3 | 1/1 | 1/1 |
-| G1 | 1/1 | 1/1 |
-| G2 | 1/1 | 1/1 |
-| R1 | 1/1 | 1/1 |
-| C1 | 1/1 | 1/1 |
-| J1 | 1/1 | 1/1 |
-| K1 | 1/1 | 1/1 |
+| Task | nexus · claude | Claude Code (baseline) | nexus · deepseek/deepseek-v4.1-flash-1017 |
+|---|---|---|---|
+| P1 | 3/3 | 3/3 | 3/3 |
+| P2 | 3/3 | 3/3 | 3/3 |
+| P3 | 3/3 | 3/3 | 2/3 |
+| G1 | 3/3 | 3/3 | 2/3 |
+| G2 | 3/3 | 3/3 | 3/3 |
+| R1 | 3/3 | 3/3 | 3/3 |
+| C1 | 3/3 | 3/3 | 3/3 |
+| J1 | 3/3 | 3/3 | 3/3 |
+| K1 | 3/3 | 3/3 | 3/3 |
 
 ![pass rate](charts/small-pass-rate.svg)
 
