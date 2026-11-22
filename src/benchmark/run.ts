@@ -106,8 +106,14 @@ export async function benchCli(_root: string, args: string[], opt: (n: string, d
   const ids = args.filter((a) => !a.startsWith("--") && suite.some((t) => t.id === a));
   const tasks = ids.length ? suite.filter((t) => ids.includes(t.id)) : suite;
   const work = path.join(os.tmpdir(), "nexus-bench");
-  const results: Result[] = [];
+  // results are saved after every run, so a stopped benchmark keeps its work; --resume <file> skips runs already in it
+  const outDir = path.join(HERE, "benchmarks/results"); fs.mkdirSync(outDir, { recursive: true });
+  const resume = opt("--resume");
+  const outFile = resume ? path.resolve(resume) : path.join(outDir, `${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}-${path.basename(suiteFile, ".json")}.json`);
+  const results: Result[] = resume ? JSON.parse(fs.readFileSync(outFile, "utf8")).results : [];
+  const save = (complete: boolean) => fs.writeFileSync(outFile, JSON.stringify({ suite: path.basename(suiteFile, ".json"), date: new Date().toISOString(), repeat, model, ccModel: ccModel || "default", complete, results }, null, 1));
   for (let rep = 1; rep <= repeat; rep++) for (const t of tasks) for (const v of variants) {
+    if (results.some((r) => r.run === rep && r.task === t.id && r.variant === v)) continue;
     const dir = path.join(work, `${t.id}-${v.replace(/[^\w.@-]/g, "_")}-${rep}`);
     prepare(t, dir);
     const t0 = Date.now();
@@ -123,12 +129,10 @@ export async function benchCli(_root: string, args: string[], opt: (n: string, d
     }
     const acc = sh(t.accept, dir);
     const r: Result = { run: rep, task: t.id, variant: v, lang: t.lang, level: t.level, requests: 0, firstInput: 0, totalInput: 0, uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0, cost: null, outcome: "", ...part, ms, changed, goldEdited: t.gold.filter((g) => changed.includes(g)).length / t.gold.length, accept: acc.status === 0 ? "pass" : "fail", acceptOut: acc.status === 0 ? undefined : ((acc.stdout || "") + (acc.stderr || "")).split("\n").filter((l) => /error|fail|assert|panic/i.test(l)).slice(0, 3).join(" | ") };
-    results.push(r);
+    results.push(r); save(false);
     console.error(`${t.id} ${v}: ${r.accept} | ${r.requests} req | in ${r.totalInput} | out ${r.output} | $${r.cost?.toFixed(3) ?? "?"} | ${(ms / 1000).toFixed(0)}s | ${r.outcome.slice(0, 60)}`);
   }
-  const outDir = path.join(HERE, "benchmarks/results"); fs.mkdirSync(outDir, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  fs.writeFileSync(path.join(outDir, `${stamp}-${path.basename(suiteFile, ".json")}.json`), JSON.stringify({ suite: path.basename(suiteFile, ".json"), date: new Date().toISOString(), repeat, model, ccModel: ccModel || "default", results }, null, 1));
+  save(true);
   console.log(table(results));
 }
 

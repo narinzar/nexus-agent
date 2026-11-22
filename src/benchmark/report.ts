@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Result } from "./run.ts";
 
-interface RunFile { file: string; suite: string; date: string; repeat: number; results: Result[] }
+interface RunFile { file: string; suite: string; date: string; repeat: number; results: Result[]; complete: boolean }
 interface Agg { variant: string; runs: number; pass: number; requests: number; input: number; cacheRead: number; output: number; cost: number; costKnown: number; ms: number }
 
 const short = (v: string) => v.replace("nexus@openrouter:", "nexus · ").replace("nexus@claude-cli", "nexus · claude").replace(/^claude-code$/, "Claude Code (baseline)").replace(/\/([\w.-]+)$/, (_, m) => `/${m}`);
@@ -16,8 +16,8 @@ function load(dir: string): RunFile[] {
     const j = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
     const results: Result[] = j.results || [];
     const suite = j.suite || (results.some((r) => /^(CK|CB|K2)/.test(r.task)) ? "large" : "small");
-    return { file: f, suite, date: j.date || f.slice(0, 10), repeat: j.repeat || 1, results };
-  }).filter((r) => r.results.length && !r.results.every((x) => x.variant === "none" || x.variant === "oracle"));
+    return { file: f, suite, date: j.date || f.slice(0, 10), repeat: j.repeat || 1, results, complete: j.complete !== false };
+  }).filter((r) => r.complete && r.results.length && !r.results.every((x) => x.variant === "none" || x.variant === "oracle"));
 }
 
 function aggregate(results: Result[]): Agg[] {
