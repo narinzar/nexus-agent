@@ -1,0 +1,160 @@
+{
+ "model": "claude-cli",
+ "ccModel": "default",
+ "results": [
+  {
+   "task": "CK1",
+   "variant": "nexus@claude-cli",
+   "lang": "python",
+   "level": 2,
+   "requests": 12,
+   "firstInput": 5631,
+   "totalInput": 126398,
+   "uncached": 24,
+   "cacheRead": 20275,
+   "cacheWrite": 106099,
+   "output": 1954,
+   "cost": 0.8920229999999999,
+   "outcome": "turn-limit",
+   "ms": 68566,
+   "changed": [
+    "src/click/core.py"
+   ],
+   "goldEdited": 1,
+   "accept": "pass"
+  },
+  {
+   "task": "CK2",
+   "variant": "nexus@claude-cli",
+   "lang": "python",
+   "level": 2,
+   "requests": 12,
+   "firstInput": 8573,
+   "totalInput": 175102,
+   "uncached": 24,
+   "cacheRead": 23388,
+   "cacheWrite": 151690,
+   "output": 2812,
+   "cost": 1.2745335999999998,
+   "outcome": "turn-limit",
+   "ms": 62544,
+   "changed": [],
+   "goldEdited": 0,
+   "accept": "fail",
+   "acceptOut": "=================================== FAILURES =================================== | >       assert not result.exception | E       assert not TypeError(\"Context.__init__() got an unexpected keyword argument 'context_settings'\")"
+  },
+  {
+   "task": "CK3",
+   "variant": "nexus@claude-cli",
+   "lang": "python",
+   "level": 3,
+   "requests": 12,
+   "firstInput": 8093,
+   "totalInput": 179491,
+   "uncached": 24,
+   "cacheRead": 22648,
+   "cacheWrite": 156819,
+   "output": 9010,
+   "cost": 1.4393776,
+   "outcome": "turn-limit",
+   "ms": 188604,
+   "changed": [
+    "src/click/formatting.py"
+   ],
+   "goldEdited": 0.5,
+   "accept": "pass"
+  },
+  {
+   "task": "CB1",
+   "variant": "nexus@claude-cli",
+   "lang": "go",
+   "level": 2,
+   "requests": 3,
+   "firstInput": 4511,
+   "totalInput": 16674,
+   "uncached": 6,
+   "cacheRead": 5790,
+   "cacheWrite": 10878,
+   "output": 1225,
+   "cost": 0.112706,
+   "outcome": "done: Added `NoDuplicateArgs` to args.go. It rejects repeated positional args with `du",
+   "ms": 23640,
+   "changed": [
+    "args.go"
+   ],
+   "goldEdited": 1,
+   "accept": "pass"
+  },
+  {
+   "task": "CB2",
+   "variant": "nexus@claude-cli",
+   "lang": "go",
+   "level": 2,
+   "requests": 6,
+   "firstInput": 4275,
+   "totalInput": 39520,
+   "uncached": 12,
+   "cacheRead": 8963,
+   "cacheWrite": 30545,
+   "output": 3388,
+   "cost": 0.3139606,
+   "outcome": "done: The default `completion` command is now added to a root command without sub-comm",
+   "ms": 48296,
+   "changed": [
+    "command.go",
+    "command_test.go",
+    "completions.go"
+   ],
+   "goldEdited": 1,
+   "accept": "fail",
+   "acceptOut": "--- FAIL: TestCompleteCompletion (0.00s) | --- FAIL: TestInitDefaultCompletionCmd (0.00s) |     --- FAIL: TestInitDefaultCompletionCmd/no_child_command_but_calling___complete_on_the_root_command (0.00s)"
+  },
+  {
+   "task": "CB3",
+   "variant": "nexus@claude-cli",
+   "lang": "go",
+   "level": 2,
+   "requests": 7,
+   "firstInput": 4406,
+   "totalInput": 71693,
+   "uncached": 14,
+   "cacheRead": 10073,
+   "cacheWrite": 61606,
+   "output": 4172,
+   "cost": 0.5783586,
+   "outcome": "done: Added `CompletionOptions.SetDefaultShellCompDirective`. The default is looked up",
+   "ms": 57156,
+   "changed": [
+    "completions.go",
+    "completions_default_directive_test.go"
+   ],
+   "goldEdited": 1,
+   "accept": "pass"
+  },
+  {
+   "task": "K2",
+   "variant": "nexus@claude-cli",
+   "lang": "tsx",
+   "level": 3,
+   "requests": 3,
+   "firstInput": 7314,
+   "totalInput": 36817,
+   "uncached": 6,
+   "cacheRead": 9938,
+   "cacheWrite": 26873,
+   "output": 4879,
+   "cost": 0.31457559999999996,
+   "outcome": "done: Added /<locale>/<design>/faq page with title, lead and five Q&A items in en/ar/c",
+   "ms": 52222,
+   "changed": [
+    "frontend/src/app/[locale]/[variant]/faq/page.tsx",
+    "frontend/src/lib/config/site.ts",
+    "frontend/src/lib/i18n/ar.ts",
+    "frontend/src/lib/i18n/ckb.ts",
+    "frontend/src/lib/i18n/en.ts"
+   ],
+   "goldEdited": 1,
+   "accept": "pass"
+  }
+ ]
+}
