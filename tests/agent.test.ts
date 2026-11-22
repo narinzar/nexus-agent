@@ -52,7 +52,11 @@ test("loop: failed SEARCH is reported, repaired on the next turn; commands batch
   const repo = await new Repo(dir).init(); await repo.index();
   const provider = mock([
     "FILE: shop/cart.py\n<<<<<<< SEARCH\nthis text does not exist\n=======\nx\n>>>>>>> REPLACE\n@ctx Cart\n@refs apply_discount",
-    (req) => { assert.match(req.messages[0].content, /edits NOT applied/); assert.match(req.messages[0].content, /used by/); return "FILE: shop/cart.py\n<<<<<<< SEARCH\n        return apply_discount(sum(self.items), pct)\n=======\n        return round(apply_discount(sum(self.items), pct), 2)\n>>>>>>> REPLACE\n@done rounded"; },
+    (req) => {
+      // append-only: turn 2 resends turn 1 unchanged (cacheable) and appends the reply plus only the new results
+      assert.equal(req.messages.length, 3); assert.equal(req.messages[1].role, "assistant");
+      assert.doesNotMatch(req.messages[2].content, /def apply_discount\(price, pct\):\n    """/); // code already sent is not resent
+      assert.match(req.messages[2].content, /edits NOT applied/); assert.match(req.messages[2].content, /used by/); return "FILE: shop/cart.py\n<<<<<<< SEARCH\n        return apply_discount(sum(self.items), pct)\n=======\n        return round(apply_discount(sum(self.items), pct), 2)\n>>>>>>> REPLACE\n@done rounded"; },
   ]);
   const r = await new Agent(repo, provider, { approval: "never" }).run("round the cart total to two decimals");
   assert.equal(r.requests, 2);
@@ -66,7 +70,7 @@ test("verification failure (syntax error) keeps the loop going", async () => {
   const repo = await new Repo(dir).init(); await repo.index();
   const provider = mock([
     "FILE: shop/pricing.py\n<<<<<<< SEARCH\ndef tax(price):\n=======\ndef tax(price:\n>>>>>>> REPLACE",
-    (req) => { assert.match(req.messages[0].content, /syntax/); return "FILE: shop/pricing.py\n<<<<<<< SEARCH\ndef tax(price:\n=======\ndef tax(price):\n>>>>>>> REPLACE"; },
+    (req) => { assert.match(req.messages.at(-1)!.content, /syntax/); return "FILE: shop/pricing.py\n<<<<<<< SEARCH\ndef tax(price:\n=======\ndef tax(price):\n>>>>>>> REPLACE"; },
   ]);
   const r = await new Agent(repo, provider, { approval: "never" }).run("touch the tax function signature");
   assert.equal(r.requests, 2);

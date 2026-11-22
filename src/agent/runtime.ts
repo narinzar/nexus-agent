@@ -98,12 +98,14 @@ export class Agent {
       if (loc.length) ctx.observe("likely relevant symbols (kg locate)", loc.map((x) => `${x.sym.name} ${x.sym.kind} ${x.sym.file}:${x.sym.line}-${x.sym.end}  <- ${x.why.slice(0, 3).join("; ")}`).join("\n"));
     }
     report.filesShown = [...new Set([...ctx.spans.values()].map((s) => s.file))];
-    const maxTurns = this.opts.maxTurns ?? (report.level >= 3 ? 30 : 12);
+    const maxTurns = this.opts.maxTurns ?? (report.level >= 3 ? 30 : 20);
     let failures = 0;
+    let prevReply: string | undefined;
     for (let turn = 1; turn <= maxTurns; turn++) {
       ctx.turn = turn; report.turns = turn;
-      const { user, bySource } = ctx.render(turn === 1 ? "" : "Continue: reply with edits and/or commands; @done when finished.");
-      const res = await this.provider.complete({ system: ctx.system, prefix: ctx.prefix(), messages: [{ role: "user", content: user }], cacheKey: this.session, maxTokens: 16000 });
+      const { messages, bySource } = ctx.nextMessages(prevReply);
+      const res = await this.provider.complete({ system: ctx.system, prefix: ctx.prefix(), messages, cacheKey: `${this.session}-${ctx.epoch}`, maxTokens: 16000 });
+      prevReply = res.text;
       report.requests++; report.usage = addUsage(report.usage, res.usage);
       if (turn === 1) report.firstRequestInput = totalInput(res.usage);
       const overBudget = this.opts.maxCost !== undefined && (report.usage.cost?.total || 0) > this.opts.maxCost;

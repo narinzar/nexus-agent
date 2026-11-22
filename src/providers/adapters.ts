@@ -1,5 +1,6 @@
 // Provider adapters, dependency-free (fetch / child process). Each maps tool calls, caching hints and usage.
 import { spawn } from "node:child_process";
+import crypto from "node:crypto";
 import type { Usage } from "../core/types.ts";
 import type { CompleteRequest, CompleteResult, Provider, ToolCall } from "./types.ts";
 
@@ -23,7 +24,9 @@ export function anthropic(model: string, apiKey = process.env.ANTHROPIC_API_KEY,
       const system: any[] = [{ type: "text", text: req.system, ...(req.prefix ? {} : { cache_control: { type: "ephemeral" } }) }];
       if (req.prefix) system.push({ type: "text", text: req.prefix, cache_control: { type: "ephemeral" } });
       const tools = req.tools?.map((t, i, a) => ({ name: t.name, description: t.description, input_schema: t.parameters, ...(i === a.length - 1 ? { cache_control: { type: "ephemeral" } } : {}) }));
-      const j = await postJson(`${baseUrl}/v1/messages`, { "x-api-key": apiKey, "anthropic-version": "2023-06-01" }, { model, max_tokens: req.maxTokens ?? 8192, system, messages: req.messages, ...(tools?.length ? { tools } : {}), ...(req.temperature !== undefined ? { temperature: req.temperature } : {}) });
+      // breakpoint on the last message: the whole append-only conversation becomes a cache prefix for the next turn
+      const messages = req.messages.map((m, i, a) => (i === a.length - 1 ? { role: m.role, content: [{ type: "text", text: m.content, cache_control: { type: "ephemeral" } }] } : m));
+      const j = await postJson(`${baseUrl}/v1/messages`, { "x-api-key": apiKey, "anthropic-version": "2023-06-01" }, { model, max_tokens: req.maxTokens ?? 8192, system, messages, ...(tools?.length ? { tools } : {}), ...(req.temperature !== undefined ? { temperature: req.temperature } : {}) });
       const u = j.usage || {};
       const usage: Usage = { inputUncached: u.input_tokens || 0, cacheRead: u.cache_read_input_tokens || 0, cacheWrite: u.cache_creation_input_tokens || 0, output: u.output_tokens || 0, cost: { total: 0, source: "unknown" } };
       const text = (j.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
@@ -76,15 +79,22 @@ export function gemini(model: string, apiKey = process.env.GEMINI_API_KEY || pro
 }
 
 /** The local Claude Code CLI as a plain completion endpoint (uses the user's existing login; no API key needed).
- *  Its own system prompt, tools, MCP servers and skill listing are switched off, leaving ~1.4K fixed tokens. */
+ *  Its own system prompt, tools, MCP servers and skill listing are switched off, leaving ~1.4K fixed tokens.
+ *  Multi-turn conversations continue one CLI session (--resume), so earlier turns are served from the prompt cache. */
 export function claudeCli(model = ""): Provider {
+  const sessions = new Map<string, { id: string; turns: number }>(); // cacheKey -> CLI session
   return {
     id: "claude-cli", model: model || "default", capabilities: { nativeTools: false, caching: "automatic", contextWindow: 200_000 },
     complete(req) {
       const t0 = Date.now();
       const sys = req.system + (req.prefix ? `\n\n${req.prefix}` : "");
-      const transcript = req.messages.length === 1 ? req.messages[0].content : req.messages.map((m) => `<${m.role}>\n${m.content}\n</${m.role}>`).join("\n\n") + "\n\nContinue as the assistant.";
-      const args = ["-p", "--system-prompt", sys, "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands", "--no-session-persistence", "--output-format", "json", ...(model ? ["--model", model] : [])];
+      const key = req.cacheKey || "";
+      const known = key ? sessions.get(key) : undefined;
+      // continue the CLI session when it already holds every earlier turn; otherwise start one (or fall back to a transcript)
+      const canResume = !!known && req.messages.length === known.turns * 2 + 1;
+      const input = canResume || req.messages.length === 1 ? req.messages[req.messages.length - 1].content : req.messages.map((m) => `<${m.role}>\n${m.content}\n</${m.role}>`).join("\n\n") + "\n\nContinue as the assistant.";
+      const sessionArgs = !key ? ["--no-session-persistence"] : canResume ? ["--resume", known!.id] : ["--session-id", crypto.randomUUID()];
+      const args = ["-p", "--system-prompt", sys, "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands", ...sessionArgs, "--output-format", "json", ...(model ? ["--model", model] : [])];
       return new Promise((resolve, reject) => {
         const p = spawn("claude", args, { stdio: ["pipe", "pipe", "pipe"] });
         let out = "", err = "";
@@ -94,10 +104,11 @@ export function claudeCli(model = ""): Provider {
           try {
             const j = JSON.parse(out); const u = j.usage || {};
             if (j.is_error) return reject(new Error(`claude-cli: ${j.result || j.subtype}`));
+            if (key) { const id = canResume ? known!.id : sessionArgs[1]; if (id && sessionArgs[0] !== "--no-session-persistence") sessions.set(key, { id, turns: canResume ? known!.turns + 1 : (req.messages.length === 1 ? 1 : 0) }); }
             resolve({ text: j.result || "", toolCalls: [], model: Object.keys(j.modelUsage || {})[0] || model, ms: Date.now() - t0, usage: { inputUncached: u.input_tokens || 0, cacheRead: u.cache_read_input_tokens || 0, cacheWrite: u.cache_creation_input_tokens || 0, output: u.output_tokens || 0, cost: { total: j.total_cost_usd || 0, source: "provider" } } });
           } catch { reject(new Error(`claude-cli failed: ${(err || out).slice(0, 400)}`)); }
         });
-        p.stdin.end(transcript);
+        p.stdin.end(input);
       });
     },
   };
