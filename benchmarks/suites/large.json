@@ -101,7 +101,7 @@
  },
  {
   "id": "K2",
-  "git": "/home/user/_z_websites_kadd-academy",
+  "git": "${KADD_REPO}",
   "commit": "3225350",
   "link": [
    "frontend/node_modules"
@@ -117,6 +117,7 @@
   "hidden": {
    "accept-faq.sh": "K2/accept.sh"
   },
-  "accept": "bash accept-faq.sh"
+  "accept": "bash accept-faq.sh",
+  "note": "Private repository (a real Next.js site); set KADD_REPO to a local clone to include this task."
  }
 ]

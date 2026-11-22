@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import { words, stem } from "../intel/locate.ts";
+import { words, stem } from "../repo-intel/locate.ts";
 
 export interface Skill { name: string; description: string; dir: string; source: string; meta: Record<string, string> }
 const BUILTIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../skills");

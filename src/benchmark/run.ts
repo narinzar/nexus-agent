@@ -11,13 +11,13 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 interface Task { id: string; fixture?: string; git?: string; repo?: string; commit?: string; fix?: string; hiddenFromFix?: string[]; link?: string[]; lang: string; level: number; prompt: string; gold: string[]; hidden?: Record<string, string>; accept: string }
-export interface Result { task: string; variant: string; lang: string; level: number; requests: number; firstInput: number; totalInput: number; uncached: number; cacheRead: number; cacheWrite: number; output: number; cost: number | null; ms: number; changed: string[]; goldEdited: number; accept: "pass" | "fail"; acceptOut?: string; outcome: string }
+export interface Result { run?: number; task: string; variant: string; lang: string; level: number; requests: number; firstInput: number; totalInput: number; uncached: number; cacheRead: number; cacheWrite: number; output: number; cost: number | null; ms: number; changed: string[]; goldEdited: number; accept: "pass" | "fail"; acceptOut?: string; outcome: string }
 
 const sh = (cmd: string, cwd: string, timeout = 900_000) => spawnSync("bash", ["-lc", cmd], { cwd, encoding: "utf8", timeout, maxBuffer: 1 << 27 });
 
 function prepare(t: Task, dir: string) {
   fs.rmSync(dir, { recursive: true, force: true });
-  if (t.fixture) { fs.cpSync(path.join(HERE, "bench/fixtures", t.fixture), dir, { recursive: true }); execFileSync("git", ["init", "-q"], { cwd: dir }); }
+  if (t.fixture) { fs.cpSync(path.join(HERE, "benchmarks/fixtures", t.fixture), dir, { recursive: true }); execFileSync("git", ["init", "-q"], { cwd: dir }); }
   else {
     const src = t.repo ? repoCache(t.repo) : t.git!;
     execFileSync("git", ["clone", "-q", "--no-checkout", src, dir]); execFileSync("git", ["checkout", "-q", "--detach", t.commit!], { cwd: dir });
@@ -64,8 +64,8 @@ function runClaudeCode(t: Task, dir: string, model: string): Partial<Result> {
 
 /** Deterministic retrieval benchmark (no model): does the first request's packed context contain the gold files? */
 async function retrieval(tasks: Task[]) {
-  const { Repo } = await import("../intel/repo.ts");
-  const { seedContext } = await import("../intel/locate.ts");
+  const { Repo } = await import("../repo-intel/repo.ts");
+  const { seedContext } = await import("../repo-intel/locate.ts");
   const { classify } = await import("../agent/runtime.ts");
   const rows: string[] = ["| task | lang | level (rule) | top candidate | gold files in first-request context | context tokens (est.) | index ms |", "|---|---|---|---|---|---|---|"];
   let hit = 0, total = 0;
@@ -87,8 +87,17 @@ async function retrieval(tasks: Task[]) {
   console.log(rows.join("\n"));
 }
 
+/** "${ENV}" in a suite path is expanded; tasks whose repository is not available locally are skipped (e.g. private repos). */
+const expand = (s?: string) => s?.replace(/\$\{(\w+)\}/g, (_, k) => process.env[k] || "");
+function available(t: Task): boolean { if (t.git) { t.git = expand(t.git); return !!t.git && fs.existsSync(t.git); } return true; }
+
 export async function benchCli(_root: string, args: string[], opt: (n: string, d?: string) => string | undefined, flag: (n: string) => boolean) {
-  const suite: Task[] = JSON.parse(fs.readFileSync(opt("--suite", path.join(HERE, "bench/suite.json"))!, "utf8"));
+  const suiteArg = opt("--suite", "small")!;
+  const suiteFile = fs.existsSync(suiteArg) ? suiteArg : path.join(HERE, "benchmarks/suites", `${suiteArg}.json`);
+  if (args[0] === "report") { const { report } = await import("./report.ts"); return report(HERE); }
+  const all: Task[] = JSON.parse(fs.readFileSync(suiteFile, "utf8"));
+  const suite = all.filter((t) => { const ok = available(t); if (!ok) console.error(`skip ${t.id}: repository not available (${t.git ? "set the environment variable in its path" : ""})`); return ok; });
+  const repeat = +(opt("--repeat", "1")!);
   if (flag("--retrieval")) { const ids = args.filter((a) => suite.some((t) => t.id === a)); return retrieval(ids.length ? suite.filter((t) => ids.includes(t.id)) : suite); }
   const variants = (opt("--variants", "nexus,claude-code") || "").split(",");
   const model = opt("--model", "claude-cli")!;
@@ -98,8 +107,8 @@ export async function benchCli(_root: string, args: string[], opt: (n: string, d
   const tasks = ids.length ? suite.filter((t) => ids.includes(t.id)) : suite;
   const work = path.join(os.tmpdir(), "nexus-bench");
   const results: Result[] = [];
-  for (const t of tasks) for (const v of variants) {
-    const dir = path.join(work, `${t.id}-${v}`);
+  for (let rep = 1; rep <= repeat; rep++) for (const t of tasks) for (const v of variants) {
+    const dir = path.join(work, `${t.id}-${v.replace(/[^\w.@-]/g, "_")}-${rep}`);
     prepare(t, dir);
     const t0 = Date.now();
     let part: Partial<Result>;
@@ -107,19 +116,19 @@ export async function benchCli(_root: string, args: string[], opt: (n: string, d
     try { part = v === "none" ? { outcome: "no agent (suite validation: acceptance must fail)" } : v === "oracle" ? { outcome: "upstream fix applied (suite validation: acceptance must pass)" } : v.startsWith("nexus") ? runNexus(t, dir, v.includes("@") ? v.slice(v.indexOf("@") + 1) : model, maxCost) : runClaudeCode(t, dir, ccModel); } catch (e: any) { part = { outcome: `error: ${e.message.slice(0, 200)}`, requests: 0, totalInput: 0, output: 0 }; }
     const ms = Date.now() - t0;
     const changed = changedFiles(dir);
-    for (const [dest, src] of Object.entries(t.hidden || {})) { fs.mkdirSync(path.dirname(path.join(dir, dest)), { recursive: true }); fs.copyFileSync(path.join(HERE, "bench/hidden", src), path.join(dir, dest)); }
+    for (const [dest, src] of Object.entries(t.hidden || {})) { fs.mkdirSync(path.dirname(path.join(dir, dest)), { recursive: true }); fs.copyFileSync(path.join(HERE, "benchmarks/hidden-tests", src), path.join(dir, dest)); }
     if (t.fix && t.hiddenFromFix) { // upstream tests from the real fix commit, copied in only after the agent finished
       const src = t.repo ? repoCache(t.repo) : t.git!;
       for (const f of t.hiddenFromFix) { const body = execFileSync("git", ["show", `${t.fix}:${f}`], { cwd: src, maxBuffer: 1 << 26 }); fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), body); }
     }
     const acc = sh(t.accept, dir);
-    const r: Result = { task: t.id, variant: v, lang: t.lang, level: t.level, requests: 0, firstInput: 0, totalInput: 0, uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0, cost: null, outcome: "", ...part, ms, changed, goldEdited: t.gold.filter((g) => changed.includes(g)).length / t.gold.length, accept: acc.status === 0 ? "pass" : "fail", acceptOut: acc.status === 0 ? undefined : ((acc.stdout || "") + (acc.stderr || "")).split("\n").filter((l) => /error|fail|assert|panic/i.test(l)).slice(0, 3).join(" | ") };
+    const r: Result = { run: rep, task: t.id, variant: v, lang: t.lang, level: t.level, requests: 0, firstInput: 0, totalInput: 0, uncached: 0, cacheRead: 0, cacheWrite: 0, output: 0, cost: null, outcome: "", ...part, ms, changed, goldEdited: t.gold.filter((g) => changed.includes(g)).length / t.gold.length, accept: acc.status === 0 ? "pass" : "fail", acceptOut: acc.status === 0 ? undefined : ((acc.stdout || "") + (acc.stderr || "")).split("\n").filter((l) => /error|fail|assert|panic/i.test(l)).slice(0, 3).join(" | ") };
     results.push(r);
     console.error(`${t.id} ${v}: ${r.accept} | ${r.requests} req | in ${r.totalInput} | out ${r.output} | $${r.cost?.toFixed(3) ?? "?"} | ${(ms / 1000).toFixed(0)}s | ${r.outcome.slice(0, 60)}`);
   }
-  const outDir = path.join(HERE, "bench/results"); fs.mkdirSync(outDir, { recursive: true });
+  const outDir = path.join(HERE, "benchmarks/results"); fs.mkdirSync(outDir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  fs.writeFileSync(path.join(outDir, `${stamp}.json`), JSON.stringify({ model, ccModel: ccModel || "default", results }, null, 1));
+  fs.writeFileSync(path.join(outDir, `${stamp}-${path.basename(suiteFile, ".json")}.json`), JSON.stringify({ suite: path.basename(suiteFile, ".json"), date: new Date().toISOString(), repeat, model, ccModel: ccModel || "default", results }, null, 1));
   console.log(table(results));
 }
 

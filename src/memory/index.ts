@@ -1,8 +1,8 @@
 // Memory: durable facts, decisions and preferences with provenance (who/what said it, from which files at which
 // version) so recalled facts can be flagged stale when those files changed. Plus a compact task history.
 import path from "node:path";
-import { Store } from "../intel/store.ts";
-import { words, stem } from "../intel/locate.ts";
+import { Store } from "../repo-intel/store.ts";
+import { words, stem } from "../repo-intel/locate.ts";
 
 export interface Fact { id: number; kind: string; text: string; source: string; files: { file: string; hash: string | null }[]; created: string }
 

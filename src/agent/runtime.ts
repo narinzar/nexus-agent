@@ -4,13 +4,13 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { addUsage, emptyUsage, totalInput, type Usage } from "../core/types.ts";
-import type { Repo } from "../intel/repo.ts";
-import * as Q from "../intel/query.ts";
-import { locate, seedContext } from "../intel/locate.ts";
-import { commandsFor } from "../intel/detect.ts";
+import type { Repo } from "../repo-intel/repo.ts";
+import * as Q from "../repo-intel/query.ts";
+import { locate, seedContext } from "../repo-intel/locate.ts";
+import { commandsFor } from "../repo-intel/detect.ts";
 import { ContextEngine } from "../context/engine.ts";
-import { Safety, type Mode, type Approval, type Approver } from "../tools/safety.ts";
-import type { Provider } from "../providers/types.ts";
+import { Safety, type Mode, type Approval, type Approver } from "../safety/index.ts";
+import type { Provider } from "../models/types.ts";
 import { Skills } from "../skills/index.ts";
 import { Memory } from "../memory/index.ts";
 
@@ -47,6 +47,7 @@ Rules:
 - The working set holds exact current file text; never ask for code already shown. Request more only when needed (@show/@ctx/@refs).
 - After edits the system itself re-indexes and verifies (syntax, imports, typecheck and tests near the change) and shows the results: do not run typecheck/tests yourself after editing. If the edits fully do the task, include @done in the same reply.
 - Make the smallest correct change. Keep conventions of the surrounding code. Update every caller when you change a signature.
+- If you add tests, add them to the existing test file for that code (never a new file that redeclares names), with names that do not already exist.
 - If the request is ambiguous in a way that changes the outcome, use @ask instead of guessing.
 - Finish with @done when the task is complete and verified.`;
 

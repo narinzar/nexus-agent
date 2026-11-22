@@ -4,10 +4,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { Repo } from "../src/intel/repo.ts";
+import { Repo } from "../src/repo-intel/repo.ts";
 import { Agent, classify } from "../src/agent/runtime.ts";
-import { mock } from "../src/providers/adapters.ts";
-import { Safety, classifyCommand } from "../src/tools/safety.ts";
+import { mock } from "../src/models/adapters.ts";
+import { Safety, classifyCommand } from "../src/safety/index.ts";
 import { ContextEngine } from "../src/context/engine.ts";
 
 function fixture(files: Record<string, string>): string {

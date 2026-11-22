@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { heuristicProvider } from "../src/intel/heuristic/index.ts";
-import { treeSitterProvider, initTreeSitter } from "../src/intel/treesitter.ts";
+import { heuristicProvider } from "../src/repo-intel/heuristic/index.ts";
+import { treeSitterProvider, initTreeSitter } from "../src/repo-intel/treesitter.ts";
 
 // Each case: language, file name, source, expected symbol names (with kinds), imports, calls.
 const CASES: { lang: string; file: string; src: string; syms: string[]; imports?: string[]; calls?: string[] }[] = [

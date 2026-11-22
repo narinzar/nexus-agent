@@ -1,8 +1,8 @@
 // `nexus run "<task>"` and `nexus undo <session>`.
-import { Repo } from "../intel/repo.ts";
+import { Repo } from "../repo-intel/repo.ts";
 import { Agent } from "./runtime.ts";
-import { createProvider, defaultSpec } from "../providers/index.ts";
-import { ttyApprover, Safety } from "../tools/safety.ts";
+import { createProvider, defaultSpec } from "../models/index.ts";
+import { ttyApprover, Safety } from "../safety/index.ts";
 import { totalInput } from "../core/types.ts";
 
 export async function runCli(root: string, rest: () => string[], opt: (n: string, d?: string) => string | undefined, flag: (n: string) => boolean) {
