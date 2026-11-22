@@ -4,7 +4,20 @@ import crypto from "node:crypto";
 import type { Usage } from "../core/types.ts";
 import type { CompleteRequest, CompleteResult, Provider, ToolCall } from "./types.ts";
 
-async function postJson(url: string, headers: Record<string, string>, body: unknown, timeoutMs = 600_000) {
+/** POST with retries for transient failures (network drop, 429, 5xx): 3 retries, backoff 2 s, 8 s, 20 s. */
+async function postJson(url: string, headers: Record<string, string>, body: unknown, timeoutMs = 600_000): Promise<any> {
+  const waits = [2000, 8000, 20000];
+  for (let i = 0; ; i++) {
+    try { return await postOnce(url, headers, body, timeoutMs); }
+    catch (e: any) {
+      const transient = e?.name === "TypeError" || /HTTP (429|5\d\d)|ECONNRESET|ETIMEDOUT|fetch failed|socket/i.test(String(e?.message));
+      if (!transient || i >= waits.length) throw e;
+      await new Promise((r) => setTimeout(r, waits[i]));
+    }
+  }
+}
+
+async function postOnce(url: string, headers: Record<string, string>, body: unknown, timeoutMs: number) {
   const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), timeoutMs);
   try {
     const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body), signal: ctl.signal });

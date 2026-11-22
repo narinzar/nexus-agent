@@ -81,6 +81,20 @@ export class Safety {
   private denied(cmd: string, why: string) { this.log({ type: "denied", cmd, why }); return { code: 126, out: `DENIED: ${why}`, denied: why }; }
 
   /** Restore every file written in this session. */
+  /** Unified diff of everything this session changed, from the checkpoints (needs no VCS in the project). */
+  diff(maxChars = 12000): string {
+    const out: string[] = [];
+    for (const c of this.checkpoints) {
+      const abs = path.join(this.root, c.file), before = c.existed ? path.join(this.ckDir, c.file) : null;
+      const r = spawnSync("git", ["diff", "--no-index", "--no-color", "-U3", before || "/dev/null", fs.existsSync(abs) ? abs : "/dev/null"], { encoding: "utf8" });
+      let d = r.stdout || "";
+      if (!d && r.error) d = `--- ${c.file}\n+++ ${c.file}\n${fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : "(deleted)"}`;
+      out.push(d.replace(/^(---|\+\+\+) (a|b)?\S*/gm, (_m, k) => `${k} ${c.file}`).replace(/^diff --git .*\n(index .*\n)?/gm, ""));
+    }
+    const all = out.join("\n");
+    return all.length > maxChars ? all.slice(0, maxChars) + `\n... (diff truncated at ${maxChars} chars)` : all;
+  }
+
   undo(): string[] {
     const restored: string[] = [];
     for (const c of [...this.checkpoints].reverse()) {

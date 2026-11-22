@@ -14,11 +14,11 @@ import type { Provider } from "../models/types.ts";
 import { Skills } from "../skills/index.ts";
 import { Memory } from "../memory/index.ts";
 
-export interface RunOptions { maxCost?: number; mode?: "auto" | "plan"; permission?: Mode; approval?: Approval; approver?: Approver; maxTurns?: number; dry?: boolean; verify?: "auto" | "none" | "full"; log?: (s: string) => void }
+export interface RunOptions { maxCost?: number; mode?: "auto" | "plan"; permission?: Mode; approval?: Approval; approver?: Approver; maxTurns?: number; dry?: boolean; verify?: "auto" | "none" | "full"; review?: "auto" | "off" | "always"; log?: (s: string) => void }
 export interface RunReport {
   session: string; task: string; level: number; outcome: string; summary?: string;
   turns: number; requests: number; usage: Usage; tokensBySource: Record<string, number>; firstRequestInput: number;
-  commands: string[]; filesShown: string[]; filesChanged: string[]; patchTokens: number; verification: string[]; ms: number; model: string;
+  commands: string[]; filesShown: string[]; filesChanged: string[]; patchTokens: number; verification: string[]; reviews: string[]; ms: number; model: string;
 }
 
 /** Deterministic first guess at task size; the loop escalates on its own when the working set is not enough. */
@@ -31,6 +31,13 @@ export function classify(task: string): number {
   return 1;
 }
 
+const REVIEW = `Before this change is accepted, review it as a strict reviewer would. The diff below is everything you changed.
+1. Requirements: list each thing the task asks for (including implied ones: error messages, defaults, help text, docs). Is every one done?
+2. Edge cases: empty, missing or None values, several items, boundaries, ordering, unusual input the task mentions.
+3. Reach: other code that must change too (other callers, sibling functions or commands, types, exports, registration, translations).
+4. Regressions: existing behaviour and existing tests still hold; nothing unrelated changed; no debug leftovers.
+If you find a problem, fix it now with edits (inspect with @show/@refs first if needed). If the change is complete, reply only: @approve <one-line summary>.`;
+
 const SYSTEM = `You are Nexus, a software engineering agent working inside a repository (any language or stack).
 Reply ONLY with actions, no prose:
 1. Edits: one block per change, SEARCH copied exactly from the working set (as few lines as make it unique); empty SEARCH creates a file.
@@ -42,7 +49,7 @@ FILE: <repo-relative path>
 >>>>>>> REPLACE
 2. Commands, one per line (batch independent ones in one reply):
 @locate <words> | @find <name> | @ctx <symbol|file> | @refs <symbol> | @show <symbol|path:a-b|.cssclass> | @map [focus words] | @grep <regex>
-@run <shell command> | @test | @check | @skill <name> | @remember <durable fact about this repo> | @ask <question for the user> | @done <one-line summary>
+@run <shell command> | @test | @check | @skill <name> | @remember <durable fact about this repo> | @ask <question for the user> | @done <one-line summary> | @approve <summary> (only when asked to review)
 Rules:
 - The working set holds exact current file text; never ask for code already shown. Request more only when needed (@show/@ctx/@refs).
 - After edits the system itself re-indexes and verifies (syntax, imports, typecheck and tests near the change) and shows the results: do not run typecheck/tests yourself after editing. If the edits fully do the task, include @done in the same reply.
@@ -80,7 +87,7 @@ export class Agent {
 
   async run(task: string): Promise<RunReport> {
     const t0 = Date.now();
-    const report: RunReport = { session: this.session, task, level: classify(task), outcome: "", turns: 0, requests: 0, usage: emptyUsage(), tokensBySource: {}, firstRequestInput: 0, commands: [], filesShown: [], filesChanged: [], patchTokens: 0, verification: [], ms: 0, model: this.provider.model };
+    const report: RunReport = { session: this.session, task, level: classify(task), outcome: "", turns: 0, requests: 0, usage: emptyUsage(), tokensBySource: {}, firstRequestInput: 0, commands: [], filesShown: [], filesChanged: [], patchTokens: 0, verification: [], reviews: [], ms: 0, model: this.provider.model };
     const ctx = this.ctx;
     ctx.system = SYSTEM + (this.opts.mode === "plan" ? "\nPLAN MODE: do not edit or run commands that change anything; investigate and finish with @done <the plan>." : "");
     ctx.project = this.projectFacts();
@@ -105,7 +112,9 @@ export class Agent {
     for (let turn = 1; turn <= maxTurns; turn++) {
       ctx.turn = turn; report.turns = turn;
       const { messages, bySource } = ctx.nextMessages(prevReply);
-      const res = await this.provider.complete({ system: ctx.system, prefix: ctx.prefix(), messages, cacheKey: `${this.session}-${ctx.epoch}`, maxTokens: 16000 });
+      let res;
+      try { res = await this.provider.complete({ system: ctx.system, prefix: ctx.prefix(), messages, cacheKey: `${this.session}-${ctx.epoch}`, maxTokens: 16000 }); }
+      catch (e: any) { report.outcome = "error"; report.summary = String(e?.message || e).slice(0, 300); break; } // keep usage so far
       prevReply = res.text;
       report.requests++; report.usage = addUsage(report.usage, res.usage);
       if (turn === 1) report.firstRequestInput = totalInput(res.usage);
@@ -141,16 +150,23 @@ export class Agent {
       for (const c of cmds) {
         report.commands.push(`@${c.name} ${c.arg}`.trim());
         if (c.name === "done") { done = c.arg || "done"; continue; }
+        if (c.name === "approve") { done = c.arg ? `approved: ${c.arg}` : (report.summary || "approved after review"); if (report.reviews.length) report.reviews[report.reviews.length - 1] += " -> approved"; continue; }
         if (c.name === "ask") { asked = c.arg; continue; }
         const out = await this.command(c.name, c.arg);
         if (out !== null) ctx.observe(`@${c.name} ${c.arg}`.slice(0, 120), out);
         ctx.step(`@${c.name} ${c.arg}`.slice(0, 140));
       }
       if (verified === false) done = null;
-      else if (verified === true && !cmds.some((c) => !["done", "remember", "skill"].includes(c.name))) done = done || "edits applied and verified";
+      else if (verified === true && !cmds.some((c) => !["done", "approve", "remember", "skill"].includes(c.name))) done = done || "edits applied and verified";
       for (const f of report.filesShown) if (!report.filesShown.includes(f)) report.filesShown.push(f);
       for (const s of ctx.spans.values()) if (!report.filesShown.includes(s.file)) report.filesShown.push(s.file);
       if (asked) { report.outcome = "needs-input"; report.summary = asked; break; }
+      // review: before accepting @done on a change, one self-review round of the full diff against the task
+      if (done && this.wantsReview(report)) {
+        report.reviews.push(`requested after: ${done}`.slice(0, 160));
+        ctx.observe("review requested", REVIEW + "\n\nDiff of all changes so far:\n" + this.safety.diff());
+        ctx.step("review requested"); continue;
+      }
       if (done) { report.outcome = "done"; report.summary = done; break; }
       if (!edits.length && !cmds.length) { failures++; ctx.observe("format", "Your reply contained no edits and no @commands. Reply only with actions."); }
       if (failures >= 6) { report.outcome = "gave-up"; report.summary = "too many failed steps"; break; }
@@ -164,6 +180,13 @@ export class Agent {
     fs.writeFileSync(path.join(runsDir, `${this.session}.json`), JSON.stringify(report, null, 1));
     this.memory.recordRun(report);
     return report;
+  }
+
+  /** auto: review changes on tasks above level 1 (one round); always: every task with a change; off: never. */
+  wantsReview(r: RunReport): boolean {
+    const mode = this.opts.review ?? "auto";
+    if (mode === "off" || this.opts.mode === "plan" || !r.filesChanged.length || r.reviews.length >= 1) return false;
+    return mode === "always" || r.level >= 2;
   }
 
   async applyEdits(edits: { file: string; search: string; replace: string }[]): Promise<{ files: string[]; errors: string[] }> {

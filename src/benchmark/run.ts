@@ -41,10 +41,10 @@ function changedFiles(dir: string): string[] {
   return (r.stdout || "").split("\n").filter((f) => f && !f.startsWith(".nexus/"));
 }
 
-function runNexus(t: Task, dir: string, model: string, maxCost: string): Partial<Result> {
+function runNexus(t: Task, dir: string, model: string, maxCost: string, review: string): Partial<Result> {
   // NODE_USE_ENV_PROXY: Node's fetch honours HTTPS_PROXY only with it (needed behind egress proxies such as cloud sandboxes)
   const env = { ...process.env, ...(process.env.HTTPS_PROXY ? { NODE_USE_ENV_PROXY: "1" } : {}), OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || "proxy-injected" };
-  const r = spawnSync(process.execPath, ["--disable-warning=ExperimentalWarning", path.join(HERE, "src/cli.ts"), "run", "--repo", dir, "--json", "--quiet", "--approve", "never", "--max-cost", maxCost, "--model", model, t.prompt], { cwd: dir, env, encoding: "utf8", timeout: 1_800_000, maxBuffer: 1 << 27 });
+  const r = spawnSync(process.execPath, ["--disable-warning=ExperimentalWarning", path.join(HERE, "src/cli.ts"), "run", "--repo", dir, "--json", "--quiet", "--approve", "never", "--max-cost", maxCost, "--review", review, "--model", model, t.prompt], { cwd: dir, env, encoding: "utf8", timeout: 1_800_000, maxBuffer: 1 << 27 });
   if (!r.stdout.includes("{")) throw new Error((r.stderr || "no output").slice(-400));
   const j = JSON.parse(r.stdout.slice(r.stdout.indexOf("{")));
   const u = j.usage;
@@ -113,7 +113,7 @@ export async function benchCli(_root: string, args: string[], opt: (n: string, d
     const t0 = Date.now();
     let part: Partial<Result>;
     if (v === "oracle" && t.fix) execFileSync("git", ["checkout", "-q", t.fix, "--", ...t.gold], { cwd: dir }); // apply the real upstream fix
-    try { part = v === "none" ? { outcome: "no agent (suite validation: acceptance must fail)" } : v === "oracle" ? { outcome: "upstream fix applied (suite validation: acceptance must pass)" } : v.startsWith("nexus") ? runNexus(t, dir, v.includes("@") ? v.slice(v.indexOf("@") + 1) : model, maxCost) : runClaudeCode(t, dir, ccModel); } catch (e: any) { part = { outcome: `error: ${e.message.slice(0, 200)}`, requests: 0, totalInput: 0, output: 0 }; }
+    try { part = v === "none" ? { outcome: "no agent (suite validation: acceptance must fail)" } : v === "oracle" ? { outcome: "upstream fix applied (suite validation: acceptance must pass)" } : v.startsWith("nexus") ? runNexus(t, dir, v.includes("@") ? v.slice(v.indexOf("@") + 1) : model, maxCost, v.startsWith("nexus+review") ? "auto" : "off") : runClaudeCode(t, dir, ccModel); } catch (e: any) { part = { outcome: `error: ${e.message.slice(0, 200)}`, requests: 0, totalInput: 0, output: 0 }; }
     const ms = Date.now() - t0;
     const changed = changedFiles(dir);
     for (const [dest, src] of Object.entries(t.hidden || {})) { fs.mkdirSync(path.dirname(path.join(dir, dest)), { recursive: true }); fs.copyFileSync(path.join(HERE, "benchmarks/hidden-tests", src), path.join(dir, dest)); }

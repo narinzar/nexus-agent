@@ -13,12 +13,13 @@ export async function runCli(root: string, rest: () => string[], opt: (n: string
   const permission = (opt("--permission", "workspace-write") as any);
   const turnsOpt = opt("--turns"); const maxTurns = turnsOpt ? +turnsOpt : undefined;
   const maxCostOpt = opt("--max-cost"); const maxCost = maxCostOpt ? +maxCostOpt : undefined;
+  const review = (opt("--review", "auto") as "auto" | "off" | "always");
   const dry = flag("--dry"), quiet = flag("--quiet"), json = flag("--json");
   const task = rest().join(" ").trim();
-  if (!task) { console.log('usage: nexus run "<task>" [--model provider:model] [--mode plan] [--approve always|risky|never] [--permission read-only|workspace-write|full] [--dry] [--json]'); return; }
+  if (!task) { console.log('usage: nexus run "<task>" [--model provider:model] [--mode plan] [--approve always|risky|never] [--permission read-only|workspace-write|full] [--review auto|off|always] [--dry] [--json]'); return; }
   const repo = await new Repo(root).init();
   await repo.index();
-  const agent = new Agent(repo, createProvider(spec), { mode, approval, permission, approver: ttyApprover(), maxTurns, maxCost, dry, log: quiet ? undefined : (s) => console.error(`[nexus] ${s}`) });
+  const agent = new Agent(repo, createProvider(spec), { mode, approval, permission, approver: ttyApprover(), maxTurns, maxCost, dry, review, log: quiet ? undefined : (s) => console.error(`[nexus] ${s}`) });
   const r = await agent.run(task);
   if (json) { console.log(JSON.stringify(r, null, 1)); return; }
   const u = r.usage;
@@ -26,6 +27,7 @@ export async function runCli(root: string, rest: () => string[], opt: (n: string
 level ${r.level} | ${r.requests} request(s), ${r.turns} turn(s) | input ${totalInput(u)} (uncached ${u.inputUncached}, cache read ${u.cacheRead}, cache write ${u.cacheWrite}) | output ${u.output} | patch ~${r.patchTokens} tok | cost ${u.cost?.source === "unknown" ? "unknown" : `$${u.cost!.total.toFixed(4)} (${u.cost!.source})`} | ${(r.ms / 1000).toFixed(1)}s
 changed: ${r.filesChanged.join(", ") || "-"}
 verify: ${r.verification.join(" / ") || "-"}
+review: ${r.reviews.join(" / ") || "-"}
 tokens by source (estimated, all requests): ${Object.entries(r.tokensBySource).map(([k, v]) => `${k} ${v}`).join(", ")}
 session ${r.session} (log: .nexus/log/${r.session}.jsonl; undo: nexus run undo ${r.session})`);
   repo.close();

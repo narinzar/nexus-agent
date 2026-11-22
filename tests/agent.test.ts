@@ -72,9 +72,26 @@ test("verification failure (syntax error) keeps the loop going", async () => {
     "FILE: shop/pricing.py\n<<<<<<< SEARCH\ndef tax(price):\n=======\ndef tax(price:\n>>>>>>> REPLACE",
     (req) => { assert.match(req.messages.at(-1)!.content, /syntax/); return "FILE: shop/pricing.py\n<<<<<<< SEARCH\ndef tax(price:\n=======\ndef tax(price):\n>>>>>>> REPLACE"; },
   ]);
-  const r = await new Agent(repo, provider, { approval: "never" }).run("touch the tax function signature");
+  const r = await new Agent(repo, provider, { approval: "never", review: "off" }).run("touch the tax function signature");
   assert.equal(r.requests, 2);
   assert.equal(r.outcome, "done");
+  repo.close();
+});
+
+test("review round: sees the diff, can fix, then approves", async () => {
+  const dir = fixture(PY);
+  const repo = await new Repo(dir).init(); await repo.index();
+  const provider = mock([
+    "FILE: shop/pricing.py\n<<<<<<< SEARCH\n    return price * 0.2\n=======\n    return price * 0.21\n>>>>>>> REPLACE\n@done tax updated",
+    (req) => { const m = req.messages.at(-1)!.content; assert.match(m, /strict reviewer/); assert.match(m, /\+    return price \* 0\.21/); return "@approve tax rate is 21% everywhere"; },
+  ]);
+  const r = await new Agent(repo, provider, { approval: "never" }).run("change the tax signature rate everywhere to 21%");
+  assert.equal(r.requests, 2);
+  assert.equal(r.outcome, "done");
+  assert.match(r.summary!, /approved/);
+  assert.equal(r.reviews.length, 1);
+  const off = await new Agent(repo, mock(["FILE: shop/pricing.py\n<<<<<<< SEARCH\n    return price * 0.21\n=======\n    return price * 0.22\n>>>>>>> REPLACE\n@done"]), { approval: "never", review: "off" }).run("change the tax signature rate everywhere to 22%");
+  assert.equal(off.requests, 1); assert.equal(off.reviews.length, 0);
   repo.close();
 });
 
