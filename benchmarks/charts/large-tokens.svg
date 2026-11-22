@@ -1,6 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="720" height="94" viewBox="0 0 720 94" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="154" viewBox="0 0 720 154" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
   <text x="16" y="26" font-size="16" font-weight="600" fill="#888">large suite: input tokens per task</text>
   <text x="220" y="63" text-anchor="end" font-size="13" fill="#888">nexus · claude</text>
-  <rect x="230" y="49" width="380.0" height="20" rx="3" fill="#4C78A8"/>
-  <text x="618" y="63" font-size="13" fill="#888">131.0 K (87% cached)</text>
+  <rect x="230" y="49" width="100.7" height="20" rx="3" fill="#4C78A8"/>
+  <text x="338.73003834386884" y="63" font-size="13" fill="#888">139.3 K (86% cached)</text>
+  <text x="220" y="93" text-anchor="end" font-size="13" fill="#888">Claude Code (baseline)</text>
+  <rect x="230" y="79" width="380.0" height="20" rx="3" fill="#F58518"/>
+  <text x="618" y="93" font-size="13" fill="#888">525.6 K (96% cached)</text>
+  <text x="220" y="123" text-anchor="end" font-size="13" fill="#888">nexus · deepseek/deepseek-v4.1-flash-1017</text>
+  <rect x="230" y="109" width="199.2" height="20" rx="3" fill="#54A24B"/>
+  <text x="437.2331461786275" y="123" font-size="13" fill="#888">275.6 K (89% cached)</text>
 </svg>
