@@ -1,0 +1,165 @@
+{
+ "model": "claude-cli",
+ "ccModel": "default",
+ "results": [
+  {
+   "task": "CK1",
+   "variant": "nexus@claude-cli",
+   "lang": "python",
+   "level": 2,
+   "requests": 9,
+   "firstInput": 5637,
+   "totalInput": 105378,
+   "uncached": 34,
+   "cacheRead": 94329,
+   "cacheWrite": 11015,
+   "output": 2452,
+   "cost": 0.8121018,
+   "outcome": "done: Option.get_error_hint now lists sequence envvars as 'A', 'B' and omits empty one",
+   "ms": 63537,
+   "changed": [
+    "src/click/core.py"
+   ],
+   "goldEdited": 1,
+   "accept": "pass"
+  },
+  {
+   "task": "CK2",
+   "variant": "nexus@claude-cli",
+   "lang": "python",
+   "level": 2,
+   "requests": 12,
+   "firstInput": 8573,
+   "totalInput": 290738,
+   "uncached": 46,
+   "cacheRead": 259784,
+   "cacheWrite": 30908,
+   "output": 4041,
+   "cost": 2.2751064000000003,
+   "outcome": "done: edits applied and verified",
+   "ms": 81075,
+   "changed": [
+    "src/click/testing.py",
+    "tests/test_testing.py"
+   ],
+   "goldEdited": 1,
+   "accept": "fail",
+   "acceptOut": "=================================== FAILURES =================================== |         \"\"\"A setting given in both ``extra`` and ``context_settings`` fails like a | >       with pytest.raises(TypeError, match=\"multiple values for keyword argument 'obj'\"):"
+  },
+  {
+   "task": "CK3",
+   "variant": "nexus@claude-cli",
+   "lang": "python",
+   "level": 3,
+   "requests": 8,
+   "firstInput": 8094,
+   "totalInput": 154997,
+   "uncached": 30,
+   "cacheRead": 138578,
+   "cacheWrite": 16389,
+   "output": 3170,
+   "cost": 1.2042609999999998,
+   "outcome": "done: Help text now wraps only between whitespace-separated words (never after a hyphe",
+   "ms": 70466,
+   "changed": [
+    "src/click/formatting.py"
+   ],
+   "goldEdited": 0.5,
+   "accept": "pass"
+  },
+  {
+   "task": "CB1",
+   "variant": "nexus@claude-cli",
+   "lang": "go",
+   "level": 2,
+   "requests": 4,
+   "firstInput": 4509,
+   "totalInput": 35813,
+   "uncached": 14,
+   "cacheRead": 28415,
+   "cacheWrite": 7384,
+   "output": 2057,
+   "cost": 0.3302552,
+   "outcome": "done: Added NoDuplicateArgs validator in args.go (error `duplicate argument \"<arg>\" fo",
+   "ms": 33567,
+   "changed": [
+    "args.go",
+    "args_noduplicate_test.go"
+   ],
+   "goldEdited": 1,
+   "accept": "fail",
+   "acceptOut": "FAIL\tgithub.com/spf13/cobra [build failed] | FAIL"
+  },
+  {
+   "task": "CB2",
+   "variant": "nexus@claude-cli",
+   "lang": "go",
+   "level": 2,
+   "requests": 8,
+   "firstInput": 4278,
+   "totalInput": 89115,
+   "uncached": 30,
+   "cacheRead": 75472,
+   "cacheWrite": 13613,
+   "output": 2632,
+   "cost": 0.7980231999999999,
+   "outcome": "done: For a root with no sub-commands, `completion` is now added only for `prog comple",
+   "ms": 49042,
+   "changed": [
+    "command.go",
+    "command_test.go",
+    "completions.go"
+   ],
+   "goldEdited": 1,
+   "accept": "fail",
+   "acceptOut": "--- FAIL: TestCompleteCompletion (0.00s) | --- FAIL: TestInitDefaultCompletionCmd (0.00s) |     --- FAIL: TestInitDefaultCompletionCmd/no_child_command_but_calling___complete_on_the_root_command (0.00s)"
+  },
+  {
+   "task": "CB3",
+   "variant": "nexus@claude-cli",
+   "lang": "go",
+   "level": 2,
+   "requests": 11,
+   "firstInput": 4409,
+   "totalInput": 206924,
+   "uncached": 42,
+   "cacheRead": 179747,
+   "cacheWrite": 27135,
+   "output": 2937,
+   "cost": 1.79147,
+   "outcome": "done: Added CompletionOptions.SetDefaultShellCompDirective. It is inherited from the n",
+   "ms": 67051,
+   "changed": [
+    "completions.go",
+    "completions_default_directive_test.go"
+   ],
+   "goldEdited": 1,
+   "accept": "pass"
+  },
+  {
+   "task": "K2",
+   "variant": "nexus@claude-cli",
+   "lang": "tsx",
+   "level": 3,
+   "requests": 3,
+   "firstInput": 7312,
+   "totalInput": 33983,
+   "uncached": 10,
+   "cacheRead": 25695,
+   "cacheWrite": 8278,
+   "output": 4289,
+   "cost": 0.22948179999999999,
+   "outcome": "done: Added /<locale>/<design>/faq page with title and five Q&A items in en/ar/ckb dic",
+   "ms": 44442,
+   "changed": [
+    "frontend/src/app/[locale]/[variant]/faq/page.tsx",
+    "frontend/src/lib/config/site.ts",
+    "frontend/src/lib/i18n/ar.ts",
+    "frontend/src/lib/i18n/ckb.ts",
+    "frontend/src/lib/i18n/en.ts"
+   ],
+   "goldEdited": 1,
+   "accept": "pass"
+  }
+ ]
+}

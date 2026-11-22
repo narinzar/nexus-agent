@@ -111,3 +111,42 @@ The cap was also applied, unintentionally, to Nexus+Claude; the baseline had a $
    `testing.py` and the colour handling used by prompt, confirm and the pager.
 5. **Variance is real:** Nexus + Claude passed CB2 in run 1 and failed it in run 2. A single run per task is not enough
    to rank close configurations.
+
+## Run 3: append-only conversation (the fix for finding 1)
+
+**What changed**
+- Later turns now send only what is new; earlier turns are resent unchanged, so the provider serves them from cache.
+- The Claude CLI resumes one session per conversation.
+- Level 1–2 tasks get 20 turns.
+
+**Accounting bug found and fixed:** a resumed CLI session reports a *cumulative* cost on every call, so summing per
+call overcounted (the raw run showed $7.44). The adapter now records the per-call difference. The costs below are
+recomputed from the per-turn logs. Runs 1 and 2 started a fresh CLI process per call, so their costs were already
+correct.
+
+| task | accept | requests | total input | cache read | true cost |
+|---|---|---|---|---|---|
+| CK1 | **pass** | 9 | 105 K | 94 K | $0.156 |
+| CK2 | fail (hard: failed for every configuration) | 12 | 291 K | 260 K | $0.380 |
+| CK3 | **pass** | 8 | 155 K | 139 K | $0.222 |
+| CB1 | fail (see below) | 4 | 36 K | 28 K | $0.106 |
+| CB2 | fail | 8 | 89 K | 75 K | $0.177 |
+| CB3 | **pass** | 11 | 207 K | 180 K | $0.312 |
+| K2 | **pass** | 3 | 34 K | 26 K | $0.157 |
+| **all** | **4/7** | 55 | 917 K | 802 K (87 %) | **$1.51** |
+
+CB1 failed only because the agent added its own test, `TestNoDuplicateArgs`, in a new file. The hidden upstream file
+declares the same name, so the Go package no longer compiled. The implementation itself was correct. Under
+SWE-bench-style rules this still counts as a failure.
+
+**Summary, Claude model**
+
+| Configuration | Passed | Input tokens | Cost |
+|---|---|---|---|
+| Stock Claude Code | 6/7 | 3.8 M | $2.87 |
+| Nexus, rebuilt context (run 2) | 5/7 | 646 K | $4.93 |
+| **Nexus, append-only (run 3)** | **4/7** | **917 K** | **$1.51** |
+
+The cost problem is fixed: Nexus is now 1.9× cheaper than stock Claude Code on real multi-step tasks, and 3.3× cheaper
+than before. Correctness still trails the baseline on these tasks. That is now the gap to close, and it needs repeated
+runs to measure reliably.

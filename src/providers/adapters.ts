@@ -82,7 +82,7 @@ export function gemini(model: string, apiKey = process.env.GEMINI_API_KEY || pro
  *  Its own system prompt, tools, MCP servers and skill listing are switched off, leaving ~1.4K fixed tokens.
  *  Multi-turn conversations continue one CLI session (--resume), so earlier turns are served from the prompt cache. */
 export function claudeCli(model = ""): Provider {
-  const sessions = new Map<string, { id: string; turns: number }>(); // cacheKey -> CLI session
+  const sessions = new Map<string, { id: string; turns: number; cost: number }>(); // cacheKey -> CLI session (cost so far)
   return {
     id: "claude-cli", model: model || "default", capabilities: { nativeTools: false, caching: "automatic", contextWindow: 200_000 },
     complete(req) {
@@ -104,8 +104,11 @@ export function claudeCli(model = ""): Provider {
           try {
             const j = JSON.parse(out); const u = j.usage || {};
             if (j.is_error) return reject(new Error(`claude-cli: ${j.result || j.subtype}`));
-            if (key) { const id = canResume ? known!.id : sessionArgs[1]; if (id && sessionArgs[0] !== "--no-session-persistence") sessions.set(key, { id, turns: canResume ? known!.turns + 1 : (req.messages.length === 1 ? 1 : 0) }); }
-            resolve({ text: j.result || "", toolCalls: [], model: Object.keys(j.modelUsage || {})[0] || model, ms: Date.now() - t0, usage: { inputUncached: u.input_tokens || 0, cacheRead: u.cache_read_input_tokens || 0, cacheWrite: u.cache_creation_input_tokens || 0, output: u.output_tokens || 0, cost: { total: j.total_cost_usd || 0, source: "provider" } } });
+            // a resumed CLI session reports its cumulative cost: record only this call's share
+            const cumulative = j.total_cost_usd || 0;
+            const callCost = canResume ? Math.max(0, cumulative - known!.cost) : cumulative;
+            if (key) { const id = canResume ? known!.id : sessionArgs[1]; if (id && sessionArgs[0] !== "--no-session-persistence") sessions.set(key, { id, turns: canResume ? known!.turns + 1 : (req.messages.length === 1 ? 1 : 0), cost: cumulative }); }
+            resolve({ text: j.result || "", toolCalls: [], model: Object.keys(j.modelUsage || {})[0] || model, ms: Date.now() - t0, usage: { inputUncached: u.input_tokens || 0, cacheRead: u.cache_read_input_tokens || 0, cacheWrite: u.cache_creation_input_tokens || 0, output: u.output_tokens || 0, cost: { total: callCost, source: "provider" } } });
           } catch { reject(new Error(`claude-cli failed: ${(err || out).slice(0, 400)}`)); }
         });
         p.stdin.end(input);
