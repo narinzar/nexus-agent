@@ -97,7 +97,11 @@ Approval policy: `always`, `risky` (default: network, deletes, installs, git pus
 restores it. Sandboxing processes with bubblewrap/seccomp, a container or a VM is a roadmap item; until then the
 boundary is enforced in the tool layer.
 
-## MVP (what is built first)
+## MVP (built; status 2026-11-22)
+
+All seven items below are implemented and tested (`npm run check`). End-to-end results are in
+[bench/RESULTS.md](bench/RESULTS.md): 9/9 hidden tests passed across 6 languages, using 38× fewer input tokens and
+3.7× fewer requests than stock Claude Code with the same model.
 
 1. `nexus index | status | doctor`: detection and a multi-language index (L0 + L1) in SQLite. Queries: `find`, `ctx`,
    `refs`, `show`, `map`, `locate`, `impact`.
