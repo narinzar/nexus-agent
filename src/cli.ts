@@ -35,7 +35,7 @@ const root = path.resolve(opt("--repo", process.cwd())!);
 async function main() {
   const [cmd, ...a] = argv;
   if (!cmd || cmd === "help" || cmd === "--help") return console.log(HELP);
-  if (cmd === "run") { const { runCli } = await import("./agent/cli-run.ts"); return runCli(root, a, opt, flag); }
+  if (cmd === "run") { const { runCli } = await import("./agent/cli-run.ts"); return runCli(root, () => argv.slice(1), opt, flag); }
   if (cmd === "skills") { const { skillsCli } = await import("./skills/cli.ts"); return skillsCli(root, a); }
   if (cmd === "bench") { const { benchCli } = await import("./eval/bench.ts"); return benchCli(root, a, opt, flag); }
   const repo = await new Repo(root).init();

@@ -1,0 +1,20 @@
+[
+  { "id": "P1", "fixture": "py-inventory", "lang": "python", "level": 1, "prompt": "Change the inventory report title to \"Stock Report\".",
+    "gold": ["inventory/report.py"], "hidden": { "tests/test_hidden_title.py": "P1/test_hidden_title.py" }, "accept": "python3 -m pytest -q" },
+  { "id": "P2", "fixture": "py-inventory", "lang": "python", "level": 2, "prompt": "Add a second bulk discount tier: orders of 50 or more units get 15% off; 10 to 49 units keep 10%.",
+    "gold": ["inventory/pricing.py"], "hidden": { "tests/test_hidden_bulk.py": "P2/test_hidden_bulk.py" }, "accept": "python3 -m pytest -q" },
+  { "id": "P3", "fixture": "py-inventory", "lang": "python", "level": 3, "prompt": "Rename format_price to format_money across the codebase (definition, every import and caller, tests). Do not keep the old name.",
+    "gold": ["inventory/pricing.py", "inventory/report.py", "tests/test_pricing.py"], "hidden": { "tests/test_hidden_rename.py": "P3/test_hidden_rename.py" }, "accept": "python3 -m pytest -q" },
+  { "id": "G1", "fixture": "go-ratelimit", "lang": "go", "level": 2, "prompt": "Add a Remaining() float64 method to TokenBucket that returns the number of tokens currently available, after refilling for elapsed time, without consuming any.",
+    "gold": ["limiter/bucket.go"], "hidden": { "limiter/remaining_hidden_test.go": "G1/remaining_hidden_test.go" }, "accept": "go test ./..." },
+  { "id": "G2", "fixture": "go-ratelimit", "lang": "go", "level": 1, "prompt": "Bug: after a long idle period a TokenBucket allows more events than its capacity. Tokens must never exceed Capacity. Fix it.",
+    "gold": ["limiter/bucket.go"], "hidden": { "limiter/cap_hidden_test.go": "G2/cap_hidden_test.go" }, "accept": "go test ./..." },
+  { "id": "R1", "fixture": "rust-calc", "lang": "rust", "level": 2, "prompt": "Support the modulo operator % with the same precedence as * and /. Modulo by zero must return CalcError::DivisionByZero.",
+    "gold": ["src/lexer.rs", "src/parser.rs"], "hidden": { "tests/hidden_mod.rs": "R1/hidden_mod.rs" }, "accept": "cargo test -q --offline" },
+  { "id": "C1", "fixture": "c-ringbuf", "lang": "c", "level": 1, "prompt": "Bug: ringbuf_push reports the buffer full one element too early; a ring buffer created with capacity N must hold exactly N items. Fix it.",
+    "gold": ["ringbuf.c"], "hidden": { "test_hidden.c": "C1/test_hidden.c" }, "accept": "make -s test && cc -Wall -o th test_hidden.c ringbuf.c && ./th" },
+  { "id": "J1", "fixture": "java-bank", "lang": "java", "level": 1, "prompt": "Transfers must reject a non-positive amount with an IllegalArgumentException and leave both balances unchanged.",
+    "gold": ["src/bank/Bank.java"], "hidden": { "src/bank/BankHiddenTest.java": "J1/BankHiddenTest.java" }, "accept": "make -s test && java -ea -cp out bank.BankHiddenTest" },
+  { "id": "K1", "git": "/home/user/_z_websites_kadd-academy", "commit": "07e179a", "link": ["frontend/node_modules"], "lang": "tsx", "level": 1, "prompt": "Move the Previous and Next navigation buttons on the feedback page to the bottom of the video carousel, centred under it.",
+    "gold": ["frontend/src/components/features/media/Media.tsx", "frontend/src/styles/globals.css"], "accept": "cd frontend && npm run typecheck" }
+]
