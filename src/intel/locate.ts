@@ -64,11 +64,22 @@ export interface Block { file: string; from: number; to: number; text: string; r
 export function pack(repo: Repo, syms: Sym[], maxLines = 220): Block[] {
   const blocks: Block[] = [];
   const cssLines = new Map<string, Set<number>>();
+  const seenFiles = new Set<string>();
   for (const s of syms) {
     const n = s.end - s.line + 1;
-    blocks.push(n > maxLines
+    const fileLines = repo.file(s.file)?.lines ?? 0;
+    if (fileLines <= 150) { // small file: the whole file is cheap and carries constants, imports and neighbours
+      if (!seenFiles.has(s.file)) { seenFiles.add(s.file); blocks.push({ file: s.file, from: 1, to: fileLines, text: repo.read(s.file).join("\n"), reason: `whole file (contains ${s.name})` }); }
+    } else {
+      const body = repo.read(s.file, s.line, s.end).join("\n");
+      // same-file constants/types the symbol refers to (e.g. a TITLE constant used by a function)
+      for (const d of repo.store.all("SELECT * FROM symbols WHERE file=? AND parent IS NULL AND id<>? AND kind IN ('const','type','enum','struct','interface','macro') AND end-line < 30", [s.file, s.id]) as Sym[])
+        if (new RegExp(`\\b${d.short.replace(/[$]/g, "\\$")}\\b`).test(body)) blocks.push({ file: d.file, from: d.line, to: d.end, text: repo.read(d.file, d.line, d.end).join("\n"), reason: `${d.short} used by ${s.name}` });
+    }
+    if (fileLines > 150) blocks.push(n > maxLines
       ? { file: s.file, from: s.line, to: s.line + 40, text: repo.read(s.file, s.line, s.line + 40).join("\n") + `\n... (${n} lines; NEED: show ${s.file}:${s.line + 41}-${s.end})`, reason: `definition of ${s.name} (truncated)` }
       : { file: s.file, from: s.line, to: s.end, text: repo.read(s.file, s.line, s.end).join("\n"), reason: `definition of ${s.name}` });
+    else if (seenFiles.has(s.file) && blocks.at(-1)?.file !== s.file) { /* already included as whole file */ }
     for (const c of repo.store.all("SELECT DISTINCT name FROM refs WHERE file=? AND kind='style' AND line BETWEEN ? AND ?", [s.file, s.line, s.end]).map((r) => r.name)) {
       const users = repo.store.get("SELECT count(DISTINCT file || in_sym) n FROM refs WHERE kind='style' AND name=?", [c]).n;
       if (users > 8) continue;
