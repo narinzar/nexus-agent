@@ -1,117 +1,104 @@
 # Nexus-Agent
 
-A general-purpose software-engineering agent that works across languages, stacks and model providers. It treats a
-repository as a queryable knowledge system, not as text to paste into prompts.
+**A coding agent you point at any project. Describe a change in plain English; it finds the right code, makes the
+change and checks it works, while sending the AI only the code that matters.**
 
-Status: **MVP**. Repository intelligence, context engine, agent runtime, providers, safety, skills, memory and
-benchmarks work and are tested. See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap and
-[docs/research.md](docs/research.md) for what was reused and why.
+It works with any programming language and any AI model (Claude, OpenAI, DeepSeek, Qwen, local models), and it can
+undo everything it changed.
 
-## Why
+## How it works, in three steps
 
-A simple UI change made by a general coding agent once cost ~1.9 M input tokens over ~32 model calls. The causes were
-repeated instructions, re-sent tool output, whole-file reads and blind searching. Nexus avoids this as follows:
+1. **Map the project.** On first use it builds an index of every file: functions, classes, imports and what calls what.
+   It covers ~35 languages and config formats, and updates incrementally.
+2. **Send only what matters.** For a task like *"move the Next/Previous buttons to the bottom of the feedback page"* it
+   finds those few pieces of code through the index and sends just them, not the whole project.
+3. **Edit and check.** It applies the model's edits, runs the project's own checks (syntax, typecheck, nearby tests),
+   and feeds any failure back to the model until the change passes.
 
-- It **indexes the repository once and incrementally**: symbols, imports, references, tests, build commands, for
-  ~35 languages and config formats.
-- It **seeds the first request with the exact code** the task touches: located through the graph, packed precisely,
-  expanded along imports within a token budget.
-- It **rebuilds every request from structured state**: a stable cacheable prefix plus a fresh suffix. Spans the model
-  has already seen are deduplicated, and spans whose file changed are flagged stale.
-- It **does deterministic work locally**: indexing, retrieval, edit application, verification and bookkeeping.
+Within a task the conversation is append-only, so AI providers serve earlier turns from their prompt cache (~0.1× the
+price).
+
+## Results
+
+Measured on real projects with hidden tests the agent never sees. The full report and the method are in
+[benchmarks/REPORT.md](benchmarks/REPORT.md), regenerated from raw results by `nexus bench report`.
+
+![Large suite pass rate](benchmarks/charts/large-pass-rate.svg)
+![Large suite cost per task](benchmarks/charts/large-cost.svg)
+![Large suite cost vs pass rate](benchmarks/charts/large-cost-vs-quality.svg)
 
 ## Quick start
 
-Requires **Node ≥ 22.18**, which runs the TypeScript sources directly with no build step.
+Needs **Node.js 22.18 or newer**, which runs the TypeScript sources directly with no build step.
 
 ```bash
-npm install
+git clone https://github.com/narinzar/nexus-agent && cd nexus-agent && npm install
 ```
 
-The only optional dependency is the tree-sitter WASM grammars. Commands run on the current repository, or on another
-one with `--repo <path>`.
+Then run it against any project folder:
 
-| Example | What it does |
+| Command | What it does |
 |---|---|
-| `node bin/nexus.mjs index` | builds the incremental index in `.nexus/index.db` |
-| `node bin/nexus.mjs doctor` | shows coverage per language and the available upgrades |
-| `node bin/nexus.mjs map --budget 1500 auth` | ranked repository map, focused on "auth" |
-| `node bin/nexus.mjs locate "retry failed uploads"` | the symbols a task most likely touches |
-| `node bin/nexus.mjs ctx UploadService` | definition, users, uses, members, tests |
-| `node bin/nexus.mjs run "Make uploads retry 3 times with backoff"` | runs the agent |
-| `node bin/nexus.mjs run "..." --mode plan` | read-only investigation and plan |
+| `node bin/nexus.mjs index --repo ../my-project` | build the index |
+| `node bin/nexus.mjs locate "retry failed uploads" --repo ../my-project` | where a task would land |
+| `node bin/nexus.mjs run "make uploads retry 3 times" --repo ../my-project` | make the change |
+| `node bin/nexus.mjs run undo <session> --repo ../my-project` | revert everything that run changed |
 
-## Models
+**Choosing a model:** pass `--model`, or set `NEXUS_MODEL`.
 
-Pass `--model provider:model`, or set `NEXUS_MODEL`.
-
-| Spec | Notes |
+| Example | Notes |
 |---|---|
-| `anthropic:<model>` | `ANTHROPIC_API_KEY`; cache breakpoints on system + project prefix |
-| `openai:<model>` | `OPENAI_API_KEY`; `prompt_cache_key` per session |
-| `gemini:<model>` | `GEMINI_API_KEY`; implicit caching |
-| `openrouter:<model>` | `OPENROUTER_API_KEY` |
-| `ollama:<model>`, `lmstudio:<model>`, `vllm:<model>@<url>`, `compat:<model>@<url>` | any OpenAI-compatible server, including a LiteLLM proxy |
-| `claude-cli[:<model>]` | uses a local Claude Code login; its own prompt, tools and MCP are switched off (~1.4 K fixed tokens) |
+| `openrouter:deepseek/deepseek-v4.1-flash-1017` | needs `OPENROUTER_API_KEY` |
+| `anthropic:claude-sonnet-5-5` | needs `ANTHROPIC_API_KEY` |
+| `openai:gpt-6.2-sol` | needs `OPENAI_API_KEY` |
+| `gemini:<model>` | needs `GEMINI_API_KEY` |
+| `ollama:qwen3-coder` | a local model; no key |
+| `claude-cli` | uses your Claude Code login |
 
-- **Usage:** normalised to uncached input, cache read, cache write, output and reasoning tokens.
-- **Cost:** recorded only when the provider reports it, or from prices you configure. Nexus never guesses prices.
-- **Protocol:** one text-action protocol for every model, so local models with weak tool calling still work. Native
-  tool calling per provider is on the roadmap.
+Behind a corporate or sandbox HTTPS proxy, also set `NODE_USE_ENV_PROXY=1` so Node's `fetch` uses it.
 
-## Agent protocol
+**Safety:**
+- By default it may only write inside the project folder.
+- It asks before risky commands: deleting, network access, installs, `git push`.
+- It checkpoints every file it writes and logs every action to `.nexus/log/`.
 
-The model replies only with actions:
-- `SEARCH/REPLACE` edit blocks;
-- batched `@commands`: `@locate @find @ctx @refs @show @map @grep @run @test @check @skill @remember @ask @done`.
+## Project layout
 
-After every edit, Nexus re-indexes and verifies on its own: syntax via tree-sitter, unresolved imports, then the
-typecheck and tests nearest the change. The results feed back into the next turn. A verified edit with nothing else
-pending finishes the task in that same request.
-
-## Safety
-
-| Setting | Options |
+| Folder | What is inside |
 |---|---|
-| `--permission` | `read-only`, `workspace-write` (default), `full` |
-| `--approve` | `always`, `risky` (default: deletes, network, installs, pushes, infrastructure), `never` |
+| `src/repo-intel/` | step 1: language detection, parsers (built-in + tree-sitter), import resolution, SQLite index, queries (`locate`, `ctx`, `map`, ...) |
+| `src/context/` | step 2: builds each request; tracks what was already sent and what went stale |
+| `src/agent/` | the loop: classify task → send code → apply edits → verify → repeat |
+| `src/models/` | one small interface for every AI provider, with normalised token and cost accounting |
+| `src/safety/` | permission modes, approvals, workspace boundary, checkpoints, undo, logs |
+| `src/skills/`, `skills/` | optional how-to guides ([Agent Skills](https://agentskills.io) format) loaded only when relevant |
+| `src/memory/` | facts remembered between tasks, flagged stale when their files change |
+| `src/benchmark/` | the benchmark runner and the report/chart generator |
+| `benchmarks/` | task suites, fixture projects, hidden tests, raw results, generated report and charts |
+| `docs/` | [architecture](docs/architecture.md) and [research notes](docs/research.md) on what was reused and why |
+| `tests/` | unit and end-to-end tests (`npm run check`) |
 
-- **Boundary:** writes outside the workspace and anything under `.git/` are refused.
-- **Checkpoints:** every write is checkpointed, and `nexus run undo <session>` restores it.
-- **Log:** every model call, command and write is logged to `.nexus/log/<session>.jsonl`.
-
-## Skills and memory
-
-- **Skills** use the open [Agent Skills](https://agentskills.io) `SKILL.md` format.
-  - Read from `.nexus/skills`, `.agents/skills`, `.claude/skills`, `.github/skills`, `~/.nexus/skills`, plus the
-    built-ins in `skills/`.
-  - The catalogue (name + description) sits in the cacheable prefix. A skill body loads only on `@skill <name>`, and
-    references and scripts only on demand.
-  - Commands: `nexus skills list | show | new | install <path|git-url>`.
-- **Memory** keeps facts and decisions with provenance: the source plus the hashes of the files they came from. A
-  recalled fact is flagged *stale* when those files have changed. Project knowledge can also go in `.nexus/project.md`
-  and AGENTS.md / CLAUDE.md, which are read as instructions.
-
-## Benchmarks
+## Reproducing the benchmark
 
 ```bash
-node bin/nexus.mjs bench --retrieval
+node bin/nexus.mjs bench --suite large --repeat 3 --variants nexus@claude-cli,claude-code
 ```
 ```bash
-node bin/nexus.mjs bench --variants nexus,claude-code
+node bin/nexus.mjs bench report
 ```
 
-- `--retrieval` is free and deterministic: it checks the first-request context against gold files.
-- The second command runs real agents. Each task runs in an isolated copy; hidden acceptance tests are copied in after
-  the agent finishes.
-- Tasks: [bench/suite.json](bench/suite.json). Fixtures: Python, Go, Rust, C, Java, plus a real Next.js/TSX repository.
-- Results: [bench/RESULTS.md](bench/RESULTS.md).
+- `--variants` lists the configurations to compare. `nexus@<model>` is Nexus with that model; `claude-code` is stock
+  Claude Code, the baseline.
+- `bench report` regenerates `benchmarks/REPORT.md` and the charts.
+- Task suites live in `benchmarks/suites/`. A task points at a public repository and an upstream fix commit; its hidden
+  tests come from that commit.
+- `--variants none,oracle` validates a suite: every task must fail with no change and pass with the upstream fix.
 
-## Development
+## Credits
 
-```bash
-npm run check
-```
+Built on tree-sitter, Node.js and the Agent Skills format. It adapts ideas from Aider, SWE-agent, SWE-bench, Codex
+CLI, Cline, OpenHands and Pi. The full list with licences is in [CREDITS.md](CREDITS.md).
 
-This runs `tsc --noEmit` and `node --test`. The core stays language-agnostic: languages are added through tables in
-`src/intel/`, extractors, or skills. See [CLAUDE.md](CLAUDE.md) / [AGENTS.md](AGENTS.md) for contribution rules.
+## License
+
+[MIT](LICENSE)

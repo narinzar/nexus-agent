@@ -4,7 +4,7 @@ Nexus-Agent is a general-purpose software-engineering agent. It is meant for any
 with any model provider, and treats the repository as a queryable knowledge system instead of text to paste into
 prompts.
 
-Evidence for every reuse decision is in [docs/research.md](docs/research.md).
+Evidence for every reuse decision is in [research.md](research.md).
 
 ## Principles
 
@@ -100,7 +100,7 @@ boundary is enforced in the tool layer.
 ## MVP (built; status 2026-11-22)
 
 All seven items below are implemented and tested (`npm run check`). End-to-end results are in
-[bench/RESULTS.md](bench/RESULTS.md): 9/9 hidden tests passed across 6 languages, using 38× fewer input tokens and
+[benchmarks/REPORT.md](../benchmarks/REPORT.md): 9/9 hidden tests passed across 6 languages, using 38× fewer input tokens and
 3.7× fewer requests than stock Claude Code with the same model.
 
 1. `nexus index | status | doctor`: detection and a multi-language index (L0 + L1) in SQLite. Queries: `find`, `ctx`,
