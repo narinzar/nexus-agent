@@ -47,11 +47,13 @@ export function locate(repo: Repo, task: string, limit = 8): Located[] {
       if (s) bump(s, 1.2, `class .${r.name}`);
     }
   }
+  const mentionsTests = /\btests?\b|\bspec\b|coverage/i.test(task);
   for (const [id, set] of why) {
     const s = symById.get(id)!; let sc = score.get(id)!;
     const kinds = new Set([...set].map((x) => x.split(" ")[0])); // independent signal types agreeing
     if (kinds.size > 1) sc *= 1 + 0.5 * Math.min(kinds.size - 1, 3);
     const span = s.end - s.line + 1; if (span > 120) sc /= Math.log2(span / 60); // data blobs, giant functions
+    if (!mentionsTests && repo.file(s.file)?.test) sc *= 0.3; // tests are rarely the change site unless the task says so
     if (s.kind === "const" && span > 30) sc *= 0.5; // dictionaries, config objects: usually not the change site
     score.set(id, sc);
   }
@@ -96,4 +98,28 @@ export function pack(repo: Repo, syms: Sym[], maxLines = 220): Block[] {
     if (nums.length) flush(a, p);
   }
   return blocks;
+}
+
+/** First-request context: located code packed exactly, then budgeted expansion along imports (small dependency files),
+ *  so tiny repos/modules arrive complete while large ones stay focused. Level >= 3 gets candidates, not code. */
+export function seedContext(repo: Repo, task: string, level: number, budgetTokens = 3500): { blocks: Block[]; candidates: Located[] } {
+  const loc = locate(repo, task, 8);
+  if (level >= 3 || !loc.length) return { blocks: [], candidates: loc };
+  const best = loc[0].score;
+  const chosen = loc.filter((x, i) => i === 0 || x.score >= 0.6 * best).slice(0, 3).map((x) => x.sym);
+  const blocks = pack(repo, chosen);
+  let tokens = blocks.reduce((a, b) => a + b.text.length, 0) / 4;
+  const have = new Set(blocks.map((b) => b.file));
+  const frontier = [...have];
+  for (const f of frontier) {
+    if (tokens >= budgetTokens) break;
+    for (const d of repo.dependenciesOf(f)) {
+      if (have.has(d)) continue;
+      const F = repo.file(d); if (!F || F.test || F.lines > 150) continue;
+      const text = repo.read(d).join("\n"); const t = text.length / 4;
+      if (tokens + t > budgetTokens) continue;
+      blocks.push({ file: d, from: 1, to: F.lines, text, reason: `imported by ${f}` }); have.add(d); tokens += t;
+    }
+  }
+  return { blocks, candidates: loc.filter((x) => !chosen.includes(x.sym)) };
 }

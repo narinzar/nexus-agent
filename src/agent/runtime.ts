@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { addUsage, emptyUsage, totalInput, type Usage } from "../core/types.ts";
 import type { Repo } from "../intel/repo.ts";
 import * as Q from "../intel/query.ts";
-import { locate, pack } from "../intel/locate.ts";
+import { locate, seedContext } from "../intel/locate.ts";
 import { commandsFor } from "../intel/detect.ts";
 import { ContextEngine } from "../context/engine.ts";
 import { Safety, type Mode, type Approval, type Approver } from "../tools/safety.ts";
@@ -87,12 +87,11 @@ export class Agent {
     ctx.memory = this.memory.recallText(task, (f) => this.repo.hash(f));
     ctx.task = task;
     // seed: level 1-2 -> exact code of the located symbols; level 3-4 -> repository map + located candidates
-    const loc = locate(this.repo, task, 8);
-    if (report.level <= 2 && loc.length) {
-      const best = loc[0].score;
-      const chosen = loc.filter((x, i) => i === 0 || x.score >= 0.6 * best).slice(0, 3).map((x) => x.sym);
-      for (const b of pack(this.repo, chosen)) ctx.addSpan(b.file, b.from, b.to, b.text, b.reason);
-      const others = loc.filter((x) => !chosen.includes(x.sym)).slice(0, 5);
+    const seed = seedContext(this.repo, task, report.level);
+    const loc = seed.candidates;
+    if (seed.blocks.length) {
+      for (const b of seed.blocks) ctx.addSpan(b.file, b.from, b.to, b.text, b.reason);
+      const others = loc.slice(0, 5);
       if (others.length) ctx.observe("other candidates (not shown)", others.map((x) => `${x.sym.name} ${x.sym.kind} ${x.sym.file}:${x.sym.line}-${x.sym.end}`).join("\n"));
     } else {
       ctx.observe("repository map", Q.map(this.repo, report.level >= 4 ? 3000 : 1800, task.split(/\W+/).filter((w) => w.length > 3).slice(0, 6)));

@@ -47,8 +47,34 @@ function runClaudeCode(t: Task, dir: string, model: string): Partial<Result> {
   return { requests: req.size, firstInput: tot(us[0]), totalInput: us.reduce((a, x) => a + tot(x), 0), uncached: sum("input_tokens"), cacheRead: sum("cache_read_input_tokens"), cacheWrite: sum("cache_creation_input_tokens"), output: sum("output_tokens"), cost: res?.total_cost_usd ?? null, outcome: res?.subtype || "no result" };
 }
 
-export async function benchCli(_root: string, args: string[], opt: (n: string, d?: string) => string | undefined, _flag: (n: string) => boolean) {
+/** Deterministic retrieval benchmark (no model): does the first request's packed context contain the gold files? */
+async function retrieval(tasks: Task[]) {
+  const { Repo } = await import("../intel/repo.ts");
+  const { seedContext } = await import("../intel/locate.ts");
+  const { classify } = await import("../agent/runtime.ts");
+  const rows: string[] = ["| task | lang | level (rule) | top candidate | gold files in first-request context | context tokens (est.) | index ms |", "|---|---|---|---|---|---|---|"];
+  let hit = 0, total = 0;
+  for (const t of tasks) {
+    const dir = path.join(os.tmpdir(), "nexus-bench-retrieval", t.id); prepare(t, dir);
+    const repo = await new Repo(dir).init(); const st = await repo.index();
+    const level = classify(t.prompt);
+    const seed = seedContext(repo, t.prompt, level);
+    const loc = seed.blocks.length ? [] : seed.candidates;
+    let files: string[] = [], tokens = 0;
+    if (seed.blocks.length) { files = [...new Set(seed.blocks.map((b) => b.file))]; tokens = Math.ceil(seed.blocks.reduce((a, b) => a + b.text.length, 0) / 4); }
+    else { files = [...new Set(seed.candidates.map((x) => x.sym.file))]; }
+    const top = seed.blocks[0] ? seed.blocks[0].reason : loc[0] ? `${loc[0].sym.name} (${loc[0].sym.file})` : "-";
+    const g = t.gold.filter((x) => files.includes(x)).length; hit += g; total += t.gold.length;
+    rows.push(`| ${t.id} | ${t.lang} | ${t.level} (${level}) | ${top} | ${g}/${t.gold.length}${level >= 3 ? " (candidate list)" : ""} | ${tokens || "map"} | ${st.ms} |`);
+    repo.close();
+  }
+  rows.push(`| **total** | | | | **${hit}/${total}** | | |`);
+  console.log(rows.join("\n"));
+}
+
+export async function benchCli(_root: string, args: string[], opt: (n: string, d?: string) => string | undefined, flag: (n: string) => boolean) {
   const suite: Task[] = JSON.parse(fs.readFileSync(opt("--suite", path.join(HERE, "bench/suite.json"))!, "utf8"));
+  if (flag("--retrieval")) { const ids = args.filter((a) => suite.some((t) => t.id === a)); return retrieval(ids.length ? suite.filter((t) => ids.includes(t.id)) : suite); }
   const variants = (opt("--variants", "nexus,claude-code") || "").split(",");
   const model = opt("--model", "claude-cli")!;
   const ccModel = opt("--cc-model", "")!;
