@@ -17,7 +17,7 @@ function load(dir: string): RunFile[] {
     const results: Result[] = j.results || [];
     const suite = j.suite || (results.some((r) => /^(CK|CB|K2)/.test(r.task)) ? "large" : "small");
     return { file: f, suite, date: j.date || f.slice(0, 10), repeat: j.repeat || 1, results };
-  }).filter((r) => r.results.length);
+  }).filter((r) => r.results.length && !r.results.every((x) => x.variant === "none" || x.variant === "oracle"));
 }
 
 function aggregate(results: Result[]): Agg[] {
@@ -98,6 +98,8 @@ export function report(root: string) {
   }
   out.push("## Earlier runs", "", "Single-run results from development (before repeats), kept for history:", "");
   for (const f of files.filter((f) => f.repeat <= 1)) { const a = aggregate(f.results); out.push(`- [${f.file}](results/${f.file}) (${f.suite}): ${a.map((x) => `${short(x.variant)} ${x.pass}/${x.runs}`).join(", ")}`); }
+  const val = fs.readdirSync(dir).filter((f) => /validation/.test(f));
+  if (val.length) out.push("", `Suite validation (tests fail with no change, pass with the upstream fix): ${val.map((f) => `[${f}](results/${f})`).join(", ")}.`);
   out.push("", "Narrative write-ups of those runs, including what changed between them: [reports/](reports/).", "");
   fs.writeFileSync(path.join(root, "benchmarks/REPORT.md"), out.join("\n"));
   console.log(`wrote benchmarks/REPORT.md and ${fs.readdirSync(chartsDir).length} charts`);

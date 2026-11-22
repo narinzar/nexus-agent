@@ -290,5 +290,6 @@
    "accept": "fail",
    "acceptOut": "FAIL: frontend/src/app/[locale]/[variant]/faq/page.tsx missing"
   }
- ]
+ ],
+ "suite": "large"
 }

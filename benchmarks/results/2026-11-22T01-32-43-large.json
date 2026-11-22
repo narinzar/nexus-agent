@@ -156,5 +156,6 @@
    "goldEdited": 1,
    "accept": "pass"
   }
- ]
+ ],
+ "suite": "large"
 }

@@ -14,7 +14,7 @@
    "cacheRead": 94329,
    "cacheWrite": 11015,
    "output": 2452,
-   "cost": 0.8121018,
+   "cost": 0.156,
    "outcome": "done: Option.get_error_hint now lists sequence envvars as 'A', 'B' and omits empty one",
    "ms": 63537,
    "changed": [
@@ -35,7 +35,7 @@
    "cacheRead": 259784,
    "cacheWrite": 30908,
    "output": 4041,
-   "cost": 2.2751064000000003,
+   "cost": 0.38,
    "outcome": "done: edits applied and verified",
    "ms": 81075,
    "changed": [
@@ -58,7 +58,7 @@
    "cacheRead": 138578,
    "cacheWrite": 16389,
    "output": 3170,
-   "cost": 1.2042609999999998,
+   "cost": 0.222,
    "outcome": "done: Help text now wraps only between whitespace-separated words (never after a hyphe",
    "ms": 70466,
    "changed": [
@@ -79,7 +79,7 @@
    "cacheRead": 28415,
    "cacheWrite": 7384,
    "output": 2057,
-   "cost": 0.3302552,
+   "cost": 0.106,
    "outcome": "done: Added NoDuplicateArgs validator in args.go (error `duplicate argument \"<arg>\" fo",
    "ms": 33567,
    "changed": [
@@ -102,7 +102,7 @@
    "cacheRead": 75472,
    "cacheWrite": 13613,
    "output": 2632,
-   "cost": 0.7980231999999999,
+   "cost": 0.177,
    "outcome": "done: For a root with no sub-commands, `completion` is now added only for `prog comple",
    "ms": 49042,
    "changed": [
@@ -126,7 +126,7 @@
    "cacheRead": 179747,
    "cacheWrite": 27135,
    "output": 2937,
-   "cost": 1.79147,
+   "cost": 0.312,
    "outcome": "done: Added CompletionOptions.SetDefaultShellCompDirective. It is inherited from the n",
    "ms": 67051,
    "changed": [
@@ -148,7 +148,7 @@
    "cacheRead": 25695,
    "cacheWrite": 8278,
    "output": 4289,
-   "cost": 0.22948179999999999,
+   "cost": 0.157,
    "outcome": "done: Added /<locale>/<design>/faq page with title and five Q&A items in en/ar/ckb dic",
    "ms": 44442,
    "changed": [
@@ -161,5 +161,7 @@
    "goldEdited": 1,
    "accept": "pass"
   }
- ]
+ ],
+ "note": "Costs corrected: the Claude CLI reported cumulative session cost on resumed sessions; values are per-task totals recomputed from per-turn logs.",
+ "suite": "large"
 }

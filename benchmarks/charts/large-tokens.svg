@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="94" viewBox="0 0 720 94" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+  <text x="16" y="26" font-size="16" font-weight="600" fill="#888">large suite: input tokens per task</text>
+  <text x="220" y="63" text-anchor="end" font-size="13" fill="#888">nexus · claude</text>
+  <rect x="230" y="49" width="380.0" height="20" rx="3" fill="#4C78A8"/>
+  <text x="618" y="63" font-size="13" fill="#888">131.0 K (87% cached)</text>
+</svg>

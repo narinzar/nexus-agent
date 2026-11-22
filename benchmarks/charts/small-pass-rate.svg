@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="124" viewBox="0 0 720 124" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+  <text x="16" y="26" font-size="16" font-weight="600" fill="#888">small suite: pass rate</text>
+  <text x="220" y="63" text-anchor="end" font-size="13" fill="#888">nexus</text>
+  <rect x="230" y="49" width="380.0" height="20" rx="3" fill="#4C78A8"/>
+  <text x="618" y="63" font-size="13" fill="#888">100% (9/9)</text>
+  <text x="220" y="93" text-anchor="end" font-size="13" fill="#888">Claude Code (baseline)</text>
+  <rect x="230" y="79" width="380.0" height="20" rx="3" fill="#F58518"/>
+  <text x="618" y="93" font-size="13" fill="#888">100% (9/9)</text>
+</svg>
