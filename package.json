@@ -1,0 +1,22 @@
+{
+  "name": "nexus-agent",
+  "version": "0.1.0",
+  "description": "General-purpose, language-agnostic, provider-independent software-engineering agent with repository intelligence and a token-efficient context engine.",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "nexus": "bin/nexus.mjs" },
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "nexus": "node src/cli.ts",
+    "test": "node --test --disable-warning=ExperimentalWarning \"tests/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test"
+  },
+  "optionalDependencies": {
+    "@vscode/tree-sitter-wasm": "^0.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.0"
+  }
+}

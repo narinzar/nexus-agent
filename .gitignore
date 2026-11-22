@@ -1,0 +1,6 @@
+node_modules/
+.nexus/cache/
+.nexus/index.db*
+.nexus/log/
+.nexus/checkpoints/
+*.log
