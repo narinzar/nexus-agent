@@ -30,6 +30,19 @@ benchmark runs on. Licences were checked against each project's own repository: 
 | [SCIP](https://github.com/sourcegraph/scip) (Apache-2.0) | Precision levels for code facts (heuristic / syntactic / semantic); planned import |
 | [codegraph](https://github.com/colbymchenry/codegraph) (MIT) | Confirmation that WebAssembly tree-sitter + SQLite is a practical stack |
 
+## Ideas adapted for the software factory (no code copied)
+
+Read in full before designing `src/factory/`. Each was reimplemented in our own words and code.
+
+| Project | Licence | Idea |
+|---|---|---|
+| [airscripts/agentskill](https://github.com/airscripts/agentskill) | MIT | Deterministic evidence first, then the instruction file; every command cites the file that proves it; mechanical validation of the result; a short AGENTS.md with owner-only text preserved |
+| [google-research/harness2](https://github.com/google-research/harness2) | Apache-2.0 | The agent's harness as a whitelisted, size-capped surface; validate before writing; reject, retry once, fall back |
+| [dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail) | MIT | One canonical rule file rendered to thin per-agent adapters; review contract: every finding needs a concrete failing case |
+| [tt-a1i/archify](https://github.com/tt-a1i/archify) | Apache-2.0 | Model writes, deterministic code validates; staged gates with an evidence receipt; pin the base commit of every run |
+| [Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify) | Apache-2.0 | Managed marker blocks in instruction files; detecting conflicts between parallel changes from the code graph |
+| [zazencodes software factory](https://github.com/zazencodes/zazencodes-season-3/tree/main/src/software-factory-claude-code) | GPL-3.0 (ideas only; no text or code used) | Stages from build to review to approval; one worktree and branch per job; atomic job ids; backlog claims; an escalation list for risky changes |
+
 ## Benchmark subjects
 
 The large suite runs real upstream fix commits from these projects. They are cloned at run time and not vendored here:

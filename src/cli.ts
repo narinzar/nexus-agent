@@ -20,8 +20,18 @@ Repository intelligence (incremental index in .nexus/index.db)
   check [files...]          syntax + unresolved imports on changed files
   grep <pattern>            ripgrep with capped output
 
+Factory (set up a repository, run jobs in parallel)
+  init [--agents agents,claude,cursor,copilot,gemini] [--env wsl,powershell,gcp,aws-lambda,modal] [--dry]
+                            detect stack, commands, environments; write AGENTS.md (+ thin per-agent files), skills, .nexus/factory.json
+  validate                  check the instruction files still match the repository
+  env [check [ids] | list]  environment preflight: tools and sign-in, with the fix command for each failure
+  profile [set|add|apply]   personal rules (~/.nexus/profile.json), written to user-level agent files, never to repositories
+  factory run "<task>" ... [--parallel 3] [--merge]   one worktree + branch per task; review; deterministic gates
+  factory backlog [--file BACKLOG.md] [--take 5]      run the unchecked "- [ ]" items
+  factory [status] | merge <id> | clean
+
 Agent
-  run "<task>" [--mode auto|edit|loop|plan] [--model provider:model] [--approve risky|always|never] [--dry]
+  run "<task>" [--mode auto|plan] [--model provider:model] [--approve risky|always|never] [--review auto|off|always] [--dry]
   skills [list|show <name>|new <name>|install <path|git-url>]
 
 Evaluation
@@ -36,6 +46,14 @@ async function main() {
   const [cmd, ...a] = argv;
   if (!cmd || cmd === "help" || cmd === "--help") return console.log(HELP);
   if (cmd === "run") { const { runCli } = await import("./agent/cli-run.ts"); return runCli(root, () => argv.slice(1), opt, flag); }
+  if (["init", "validate", "env", "profile", "factory"].includes(cmd)) {
+    const F = await import("./factory/cli.ts");
+    if (cmd === "init") return F.initCli(root, opt, flag);
+    if (cmd === "validate") return F.validateCli(root);
+    if (cmd === "env") return F.envCli(root, argv.slice(1));
+    if (cmd === "profile") return F.profileCli(() => argv.slice(1), flag);
+    return F.factoryCli(root, () => argv.slice(1), opt, flag);
+  }
   if (cmd === "skills") { const { skillsCli } = await import("./skills/cli.ts"); return skillsCli(root, a); }
   if (cmd === "bench") { const { benchCli } = await import("./benchmark/run.ts"); return benchCli(root, a, opt, flag); }
   const repo = await new Repo(root).init();

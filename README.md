@@ -15,8 +15,29 @@ undo everything it changed.
 3. **Edit and check.** It applies the model's edits, runs the project's own checks (syntax, typecheck, nearby tests),
    and feeds any failure back to the model until the change passes.
 
-Within a task the conversation is append-only, so AI providers serve earlier turns from their prompt cache (~0.1× the
-price).
+Before a change is accepted, the agent reviews its own diff against the task (one review round) and fixes what it
+finds. Within a task the conversation is append-only, so AI providers serve earlier turns from their prompt cache
+(~0.1× the price).
+
+## Software factory: set up any repository, run tasks in parallel
+
+```bash
+nexus init
+```
+```bash
+nexus factory run "add X" "fix Y" "rename Z" --parallel 3 --merge
+```
+
+- **`nexus init`** detects the stack, commands and environments (local, Docker, WSL, PowerShell, Google Cloud, AWS
+  Lambda, Modal). It writes one `AGENTS.md` that every coding agent reads, thin pointers for Claude Code, Cursor,
+  Copilot and Gemini, and matching skills. Your own text in those files is never touched.
+- **`nexus factory run`** gives each task its own branch and worktree, runs tasks that touch different code in
+  parallel, reviews each change, and accepts it only when mechanical gates pass: tests, no risky paths, merges
+  cleanly. It never pushes.
+- **Your personal rules** (identity, no AI attribution lines, push and merge habits) live in `~/.nexus/profile.json`
+  and go into your user-level agent files and a local commit hook, never into shared repositories.
+
+Who decides what, and every step, is in [docs/factory.md](docs/factory.md).
 
 ## Results
 
@@ -43,6 +64,9 @@ Then run it against any project folder:
 | `node bin/nexus.mjs locate "retry failed uploads" --repo ../my-project` | where a task would land |
 | `node bin/nexus.mjs run "make uploads retry 3 times" --repo ../my-project` | make the change |
 | `node bin/nexus.mjs run undo <session> --repo ../my-project` | revert everything that run changed |
+| `node bin/nexus.mjs init --repo ../my-project` | set the project up for agents (see above) |
+
+Run `npm link` once in this folder to get a global `nexus` command.
 
 **Choosing a model:** pass `--model`, or set `NEXUS_MODEL`.
 
@@ -68,14 +92,15 @@ Behind a corporate or sandbox HTTPS proxy, also set `NODE_USE_ENV_PROXY=1` so No
 |---|---|
 | `src/repo-intel/` | step 1: language detection, parsers (built-in + tree-sitter), import resolution, SQLite index, queries (`locate`, `ctx`, `map`, ...) |
 | `src/context/` | step 2: builds each request; tracks what was already sent and what went stale |
-| `src/agent/` | the loop: classify task → send code → apply edits → verify → repeat |
+| `src/agent/` | the loop: classify task → send code → apply edits → verify → review → repeat |
+| `src/factory/` | `init`, `validate`, environment preflight, personal profile, parallel jobs in worktrees with gates |
 | `src/models/` | one small interface for every AI provider, with normalised token and cost accounting |
 | `src/safety/` | permission modes, approvals, workspace boundary, checkpoints, undo, logs |
-| `src/skills/`, `skills/` | optional how-to guides ([Agent Skills](https://agentskills.io) format) loaded only when relevant |
+| `src/skills/`, `skills/` | how-to guides ([Agent Skills](https://agentskills.io) format) loaded only when relevant: debugging, testing, refactoring, code review, git, performance, and one per environment |
 | `src/memory/` | facts remembered between tasks, flagged stale when their files change |
 | `src/benchmark/` | the benchmark runner and the report/chart generator |
 | `benchmarks/` | task suites, fixture projects, hidden tests, raw results, generated report and charts |
-| `docs/` | [architecture](docs/architecture.md) and [research notes](docs/research.md) on what was reused and why |
+| `docs/` | [architecture](docs/architecture.md), [software factory](docs/factory.md) and [research notes](docs/research.md) on what was reused and why |
 | `tests/` | unit and end-to-end tests (`npm run check`) |
 
 ## Reproducing the benchmark
@@ -97,7 +122,8 @@ node bin/nexus.mjs bench report
 ## Credits
 
 Built on tree-sitter, Node.js and the Agent Skills format. It adapts ideas from Aider, SWE-agent, SWE-bench, Codex
-CLI, Cline, OpenHands and Pi. The full list with licences is in [CREDITS.md](CREDITS.md).
+CLI, Cline, OpenHands and Pi; the factory adapts ideas from agentskill, harness2, ponytail, archify, graphify and the
+zazencodes software factory. The full list with licences is in [CREDITS.md](CREDITS.md).
 
 ## License
 
