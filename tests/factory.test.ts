@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { init, validate, upsertBlock, BEGIN, END } from "../src/factory/init.ts";
-import { lanes, matchesAny, takeBacklog, type Job } from "../src/factory/jobs.ts";
+import { lanes, matchesAny, takeBacklog, subject, type Job } from "../src/factory/jobs.ts";
 import { ATTRIBUTION_RE, personalRules, DEFAULT_PROFILE, applyProfile } from "../src/factory/profile.ts";
 import { detectEnvironments } from "../src/factory/environments.ts";
 
@@ -130,4 +130,11 @@ test("monorepo: root scripts that forward to a sub-package are not duplicated; s
   const cmds = r.config.commands.map((c) => `${c.kind}: ${c.cmd}`).sort();
   assert.deepEqual(cmds, ["build: npm run build", "lint: cd web && npm run lint", "typecheck: npm run typecheck"]);
   assert.equal(r.config.setup, "(cd web && npm ci)");
+});
+
+test("commit subject: first sentence, cut at a word boundary", () => {
+  assert.equal(subject("Fix the login redirect. It loops when the cookie expires."), "Fix the login redirect");
+  assert.equal(subject("Add frontend/src/app/robots.ts (Next.js metadata route): when SITE_ENV is prod allow all"), "Add frontend/src/app/robots.ts (Next.js metadata route)");
+  const s = subject("Add a skip link for keyboard users as the first focusable element in the locale layout, visually hidden until focused");
+  assert.ok(s.length <= 72 && s.endsWith("…") && !/\s…$/.test(s), s);
 });

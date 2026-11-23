@@ -117,6 +117,24 @@ export async function runJobs(root: string, tasks: string[], o: FactoryOptions =
   return jobs;
 }
 
+const GATE_KINDS = ["typecheck", "lint", "test", "build"];
+
+/** Commit subject from the task: its first sentence, cut at a word boundary to 72 characters. */
+export function subject(task: string): string {
+  const first = task.trim().split("\n")[0].split(/(?<=[a-z0-9)'"`])[.:;](\s|$)/i)[0].trim();
+  if (first.length <= 72) return first;
+  const cut = first.slice(0, 71); return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 40)).replace(/[\s,;:(-]+$/, "")}…`;
+}
+
+/** Reuse installed dependencies in a worktree: hard links where possible (bundlers such as Turbopack reject
+ * symlinks that leave the project root), else a symlink. */
+function shareDeps(from: string, to: string) {
+  if (fs.existsSync(to)) return;
+  if (process.platform !== "win32" && spawnSync("cp", ["-al", from, to]).status === 0) return;
+  fs.rmSync(to, { recursive: true, force: true });
+  fs.symlinkSync(from, to, "junction");
+}
+
 async function runJob(root: string, j: Job, cfg: FactoryConfig | null, o: FactoryOptions, log: (s: string) => void) {
   j.started = new Date().toISOString(); j.stage = "building"; save(root, j);
   fs.mkdirSync(path.dirname(j.worktree), { recursive: true });
@@ -125,7 +143,7 @@ async function runJob(root: string, j: Job, cfg: FactoryConfig | null, o: Factor
   // dependencies: reuse the main checkout's node_modules (root and sub-packages) when present; otherwise run setup
   const shared = ["", ...fs.readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith(".")).map((d) => d.name)]
     .filter((d) => fs.existsSync(path.join(root, d, "node_modules")) && fs.existsSync(path.join(j.worktree, d)));
-  for (const d of shared) if (!fs.existsSync(path.join(j.worktree, d, "node_modules"))) fs.symlinkSync(path.join(root, d, "node_modules"), path.join(j.worktree, d, "node_modules"), "junction");
+  for (const d of shared) shareDeps(path.join(root, d, "node_modules"), path.join(j.worktree, d, "node_modules"));
   if (!shared.length && cfg?.setup) { const s = await run(cfg.setup, j.worktree); j.gates.push({ name: "setup", ok: s.code === 0, detail: `${cfg.setup} -> exit ${s.code}` }); }
   log(`[${j.id}] building`);
   const r = await runNexus(j.worktree, j.task, o.model || cfg?.models?.build, o.maxCost || "1");
@@ -136,17 +154,19 @@ async function runJob(root: string, j: Job, cfg: FactoryConfig | null, o: Factor
   j.changed = git(j.worktree, "diff", "--cached", "--name-only").stdout.split("\n").filter(Boolean);
   j.gates.push({ name: "agent finished", ok: r.outcome === "done", detail: `${r.outcome}${r.summary ? `: ${r.summary}` : ""}` });
   j.gates.push({ name: "changed something", ok: j.changed.length > 0, detail: `${j.changed.length} file(s)` });
-  for (const c of (cfg?.commands || []).filter((x) => ["typecheck", "lint", "test"].includes(x.kind))) {
+  // cheapest first; the build runs only when the faster checks passed
+  for (const c of GATE_KINDS.flatMap((k) => (cfg?.commands || []).filter((x) => x.kind === k))) {
+    if (c.kind === "build" && j.gates.some((g) => !g.ok && GATE_KINDS.includes(g.name))) { j.gates.push({ name: "build", ok: false, detail: "skipped: an earlier check failed" }); continue; }
     const res = await run(c.cmd, j.worktree);
     j.gates.push({ name: c.kind, ok: res.code === 0, detail: `\`${c.cmd}\` exit ${res.code}${res.code ? `: ${res.out.trim().split("\n").slice(-3).join(" ")}` : ""}` });
   }
   const risky = j.changed.filter((f) => matchesAny(f, cfg?.escalate || DEFAULT_ESCALATE));
   j.gates.push({ name: "escalation paths", ok: !risky.length, detail: risky.length ? risky.join(", ") : "none touched" });
   if (j.changed.length) {
-    const me = loadProfile(), msg = j.task.split("\n")[0].slice(0, 72);
+    const me = loadProfile(), msg = subject(j.task);
     if (ATTRIBUTION_RE.test(msg)) j.reasons.push("task text contains an attribution line");
     const id = me.git.name && me.git.email ? ["-c", `user.name=${me.git.name}`, "-c", `user.email=${me.git.email}`] : [];
-    const c = git(j.worktree, ...id, "commit", "-q", "-m", msg, "-m", j.task.length > 72 ? j.task : "");
+    const c = git(j.worktree, ...id, "commit", "-q", "-m", msg, ...(msg !== j.task.trim() ? ["-m", j.task] : []));
     j.gates.push({ name: "commit", ok: c.status === 0, detail: c.status === 0 ? git(j.worktree, "rev-parse", "--short", "HEAD").stdout.trim() : c.stderr.trim() });
     const head = git(root, "rev-parse", "HEAD").stdout.trim();
     const mt = git(root, "merge-tree", "--write-tree", head, j.branch);
