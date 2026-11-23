@@ -3,13 +3,13 @@
   <text x="220" y="63" text-anchor="end" font-size="13" fill="#888">nexus · claude</text>
   <rect x="230" y="49" width="100.7" height="20" rx="3" fill="#4C78A8"/>
   <text x="338.73003834386884" y="63" font-size="13" fill="#888">139.3 K (86% cached)</text>
-  <text x="220" y="93" text-anchor="end" font-size="13" fill="#888">nexus+review@claude-cli</text>
+  <text x="220" y="93" text-anchor="end" font-size="13" fill="#888">nexus + review · claude</text>
   <rect x="230" y="79" width="133.1" height="20" rx="3" fill="#F58518"/>
   <text x="371.077249718217" y="93" font-size="13" fill="#888">184.1 K (86% cached)</text>
   <text x="220" y="123" text-anchor="end" font-size="13" fill="#888">Claude Code (baseline)</text>
   <rect x="230" y="109" width="380.0" height="20" rx="3" fill="#54A24B"/>
   <text x="618" y="123" font-size="13" fill="#888">525.6 K (96% cached)</text>
-  <text x="220" y="153" text-anchor="end" font-size="13" fill="#888">nexus+review@openrouter:deepseek/deepseek-v4.1-flash-1017</text>
+  <text x="220" y="153" text-anchor="end" font-size="13" fill="#888">nexus + review · deepseek/deepseek-v4.1-flash-1017</text>
   <rect x="230" y="139" width="192.3" height="20" rx="3" fill="#B279A2"/>
   <text x="430.2852675849034" y="153" font-size="13" fill="#888">266.0 K (89% cached)</text>
   <text x="220" y="183" text-anchor="end" font-size="13" fill="#888">nexus · deepseek/deepseek-v4.1-flash-1017</text>

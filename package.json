@@ -1,11 +1,34 @@
 {
   "name": "nexus-agent",
   "version": "0.1.0",
-  "description": "General-purpose, language-agnostic, provider-independent software-engineering agent with repository intelligence and a token-efficient context engine.",
-  "type": "module",
+  "description": "Language-agnostic, model-independent coding agent with a code index, a token-efficient context engine, self-review, and a software factory that runs tasks in parallel behind mechanical gates.",
+  "keywords": [
+    "coding-agent",
+    "ai",
+    "llm",
+    "code-index",
+    "tree-sitter",
+    "agents-md",
+    "agent-skills",
+    "software-factory",
+    "developer-tools"
+  ],
+  "homepage": "https://github.com/narinzar/nexus-agent#readme",
+  "bugs": {
+    "url": "https://github.com/narinzar/nexus-agent/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/narinzar/nexus-agent.git"
+  },
   "license": "MIT",
-  "bin": { "nexus": "bin/nexus.mjs" },
-  "engines": { "node": ">=22.18" },
+  "type": "module",
+  "bin": {
+    "nexus": "bin/nexus.mjs"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "nexus": "node src/cli.ts",
     "test": "node --test --disable-warning=ExperimentalWarning \"tests/**/*.test.ts\"",

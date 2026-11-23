@@ -17,14 +17,14 @@ Tasks: CK1, CK2, CK3, CB1, CB2, CB3, K2. Runs per task and configuration: 3. Sou
 | Configuration | Passed | Pass rate | Requests / task | Input tokens / task | Cache read | Output / task | Cost / task | Total cost | Time / task |
 |---|---|---|---|---|---|---|---|---|---|
 | nexus · claude | 18/21 | **86%** | 8.3 | 139.3 K | 86% | 3.4 K | $0.243 | $5.11 | 66 s |
-| nexus+review@claude-cli | 18/21 | **86%** | 9.3 | 184.1 K | 86% | 3.5 K | $0.302 | $6.34 | 76 s |
+| nexus + review · claude | 18/21 | **86%** | 9.3 | 184.1 K | 86% | 3.5 K | $0.302 | $6.34 | 76 s |
 | Claude Code (baseline) | 17/21 | **81%** | 10.8 | 525.6 K | 96% | 374 | $0.391 | $8.22 | 62 s |
-| nexus+review@openrouter:deepseek/deepseek-v4.1-flash-1017 | 14/21 | **67%** | 15.4 | 266.0 K | 89% | 21.8 K | $0.014 | $0.30 | 112 s |
+| nexus + review · deepseek/deepseek-v4.1-flash-1017 | 14/21 | **67%** | 15.4 | 266.0 K | 89% | 21.8 K | $0.014 | $0.30 | 112 s |
 | nexus · deepseek/deepseek-v4.1-flash-1017 | 13/21 | **62%** | 14.4 | 275.6 K | 89% | 25.1 K | $0.012 | $0.25 | 135 s |
 
 Passes per task (out of runs):
 
-| Task | nexus · claude | nexus+review@claude-cli | Claude Code (baseline) | nexus+review@openrouter:deepseek/deepseek-v4.1-flash-1017 | nexus · deepseek/deepseek-v4.1-flash-1017 |
+| Task | nexus · claude | nexus + review · claude | Claude Code (baseline) | nexus + review · deepseek/deepseek-v4.1-flash-1017 | nexus · deepseek/deepseek-v4.1-flash-1017 |
 |---|---|---|---|---|---|
 | CK1 | 3/3 | 3/3 | 3/3 | 3/3 | 2/3 |
 | CK2 | 0/3 | 0/3 | 0/3 | 0/3 | 0/3 |

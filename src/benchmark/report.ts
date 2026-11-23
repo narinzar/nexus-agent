@@ -7,7 +7,13 @@ import type { Result } from "./run.ts";
 interface RunFile { file: string; suite: string; date: string; repeat: number; results: Result[]; complete: boolean }
 interface Agg { variant: string; runs: number; pass: number; requests: number; input: number; cacheRead: number; output: number; cost: number; costKnown: number; ms: number }
 
-const short = (v: string) => v.replace("nexus@openrouter:", "nexus · ").replace("nexus@claude-cli", "nexus · claude").replace(/^claude-code$/, "Claude Code (baseline)").replace(/\/([\w.-]+)$/, (_, m) => `/${m}`);
+/** Display name of a variant: "nexus+review@openrouter:deepseek/x" -> "nexus + review · deepseek/x". */
+const short = (v: string) => {
+  if (v === "claude-code") return "Claude Code (baseline)";
+  const m = v.match(/^nexus(\+review)?@(.+)$/); if (!m) return v;
+  const model = m[2] === "claude-cli" ? "claude" : m[2].replace(/^openrouter:/, "");
+  return `nexus${m[1] ? " + review" : ""} · ${model}`;
+};
 const fmtK = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)} M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)} K` : `${Math.round(n)}`);
 const pct = (a: number, b: number) => (b ? `${Math.round((100 * a) / b)}%` : "-");
 

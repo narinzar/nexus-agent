@@ -5,8 +5,8 @@
   <text x="380" y="402" text-anchor="middle" font-size="13" fill="#888">average cost per task (USD)</text>
   <text x="18" y="202" font-size="13" fill="#888" transform="rotate(-90 18 202)" text-anchor="middle">pass rate</text>
   <circle cx="420.8" cy="89.1" r="7" fill="#4C78A8"/><text x="431.8" y="93.1" font-size="12" fill="#888">nexus · claude</text>
-  <circle cx="505.0" cy="89.1" r="7" fill="#F58518"/><text x="516.0" y="93.1" font-size="12" fill="#888">nexus+review@claude-cli</text>
+  <circle cx="505.0" cy="89.1" r="7" fill="#F58518"/><text x="516.0" y="93.1" font-size="12" fill="#888">nexus + review · claude</text>
   <circle cx="633.6" cy="104.2" r="7" fill="#54A24B"/><text x="644.6" y="108.2" font-size="12" fill="#888">Claude Code (baseline)</text>
-  <circle cx="90.7" cy="149.3" r="7" fill="#B279A2"/><text x="101.7" y="153.3" font-size="12" fill="#888">nexus+review@openrouter:deepseek/deepseek-v4.1-flash-1017</text>
+  <circle cx="90.7" cy="149.3" r="7" fill="#B279A2"/><text x="101.7" y="153.3" font-size="12" fill="#888">nexus + review · deepseek/deepseek-v4.1-flash-1017</text>
   <circle cx="88.0" cy="164.4" r="7" fill="#E45756"/><text x="99.0" y="168.4" font-size="12" fill="#888">nexus · deepseek/deepseek-v4.1-flash-1017</text>
 </svg>
