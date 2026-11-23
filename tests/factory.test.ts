@@ -118,3 +118,16 @@ test("environment detection from repository evidence", () => {
   for (const e of ["modal", "gcp", "docker", "local"]) assert.ok(ids.includes(e), `${e} not in ${ids}`);
   assert.ok(!ids.includes("aws-lambda"));
 });
+
+test("monorepo: root scripts that forward to a sub-package are not duplicated; setup found for the sub-package", async () => {
+  const dir = repoWith({
+    "package.json": JSON.stringify({ name: "root", scripts: { build: "npm run build --prefix web", typecheck: "npm run typecheck --prefix web" } }),
+    "web/package.json": JSON.stringify({ name: "web", scripts: { build: "next build", typecheck: "tsc --noEmit", lint: "eslint ." } }),
+    "web/package-lock.json": "{}", "web/src/a.ts": "export const a = 1;\n",
+  });
+  profile(dir, {});
+  const r = await init(dir, { dry: true });
+  const cmds = r.config.commands.map((c) => `${c.kind}: ${c.cmd}`).sort();
+  assert.deepEqual(cmds, ["build: npm run build", "lint: cd web && npm run lint", "typecheck: npm run typecheck"]);
+  assert.equal(r.config.setup, "(cd web && npm ci)");
+});

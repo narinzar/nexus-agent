@@ -39,8 +39,23 @@ export interface FactoryConfig {
 
 export const DEFAULT_ESCALATE = [".github/workflows/**", ".gitlab-ci.yml", "**/Dockerfile*", "**/*compose*.y*ml", "**/migrations/**", "**/*.sql", "**/auth/**", "**/.env*", "**/*.tf", "**/serverless.y*ml", "**/app.y*ml", "**/cloudbuild.y*ml", "**/package.json", "**/pyproject.toml", "**/go.mod", "**/Cargo.toml", "**/requirements*.txt", "AGENTS.md", "CLAUDE.md"];
 
-function setupCommand(root: string, files: string[]): string | undefined {
-  const at = (f: string) => files.includes(f) || fs.existsSync(path.join(root, f)); // lockfiles are not indexed
+function rootScripts(root: string): Record<string, string> {
+  try { return JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).scripts ?? {}; } catch { return {}; }
+}
+
+/** Setup for the repository: a root install script, else the root lockfile, else each sub-package's lockfile. */
+function setupCommand(root: string, files: string[], subdirs: string[] = []): string | undefined {
+  const scripts = rootScripts(root);
+  const named = ["setup", "bootstrap", "install:all", "install-all", "deps"].find((n) => /\b(install|ci|sync)\b/.test(scripts[n] ?? ""));
+  if (named) return `npm run ${named}`;
+  const own = setupIn(root, files, "");
+  if (own) return own;
+  const subs = subdirs.map((d) => { const c = setupIn(root, files, d); return c && `(cd ${d} && ${c})`; }).filter(Boolean);
+  return subs.length ? subs.join(" && ") : undefined;
+}
+
+function setupIn(root: string, files: string[], dir: string): string | undefined {
+  const at = (f: string) => { const rel = dir ? `${dir}/${f}` : f; return files.includes(rel) || fs.existsSync(path.join(root, rel)); }; // lockfiles are not indexed
   if (at("pnpm-lock.yaml")) return "pnpm install --frozen-lockfile";
   if (at("yarn.lock")) return "yarn install --frozen-lockfile";
   if (at("bun.lockb") || at("bun.lock")) return "bun install --frozen-lockfile";
@@ -54,14 +69,30 @@ function setupCommand(root: string, files: string[]): string | undefined {
   return undefined;
 }
 
+/** A sub-package command is redundant when a root script of the same kind already runs it (`--prefix dir`, `cd dir`, ...). */
+function delegated(c: Command, sameKind: Command[], scripts: Record<string, string>): boolean {
+  const dir = c.cmd.match(/^cd (\S+) && /)?.[1]; if (!dir) return false;
+  const d = dir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const via = new RegExp(`(--prefix|-C|--dir|--cwd|--workspace|-w|cd)[ =]+(\\./)?${d}(/|\\b)`);
+  return sameKind.some((r) => {
+    if (r.cmd.startsWith("cd ")) return false;
+    const name = r.cmd.match(/^(?:npm run|pnpm(?: run)?|yarn(?: run)?|bun run)\s+(\S+)/)?.[1];
+    return !!name && via.test(scripts[name] ?? "");
+  });
+}
+
 export async function plan(root: string, me: PersonalProfile = loadProfile()): Promise<FactoryConfig> {
   const repo = await new Repo(root).init(); await repo.index();
   const p: Profile = repo.profile(); const files = repo.listFiles(); repo.close();
   const saved = readConfig(root);
   const commands: Command[] = [];
   for (const kind of ["setup", "build", "typecheck", "lint", "test", "format", "run"] as const) {
-    if (kind === "setup") { const s = setupCommand(root, files); if (s) commands.push({ kind, cmd: s, evidence: "lockfile" }); continue; }
-    for (const c of commandsFor(p, kind)) { const b = p.buildSystems.find((x) => x.commands[kind] === c)!; commands.push({ kind, cmd: c, evidence: b.manifest }); }
+    if (kind === "setup") {
+      const subdirs = [...new Set(p.buildSystems.map((b) => path.posix.dirname(b.manifest)).filter((d) => d !== "."))];
+      const s = setupCommand(root, files, subdirs); if (s) commands.push({ kind, cmd: s, evidence: "lockfile or install script" }); continue;
+    }
+    const found = commandsFor(p, kind).map((c) => ({ kind, cmd: c, evidence: p.buildSystems.find((x) => x.commands[kind] === c)!.manifest }));
+    commands.push(...found.filter((c) => !delegated(c, found, rootScripts(root))));
   }
   const envs = detectEnvironments(root, files, me.environments);
   const skills = [...new Set([...BASE_SKILLS, ...envs.map((e) => e.skill)])].filter((s) => fs.existsSync(path.join(BUILTIN_SKILLS, s, "SKILL.md")));

@@ -122,15 +122,17 @@ async function runJob(root: string, j: Job, cfg: FactoryConfig | null, o: Factor
   fs.mkdirSync(path.dirname(j.worktree), { recursive: true });
   const add = git(root, "worktree", "add", "-q", "-b", j.branch, j.worktree, j.base);
   if (add.status !== 0) { j.stage = "failed"; j.reasons.push(`worktree: ${add.stderr.trim()}`); return save(root, j); }
-  // dependencies: reuse the main checkout's node_modules when present (fast, read-mostly); otherwise run setup
-  if (fs.existsSync(path.join(root, "node_modules")) && !fs.existsSync(path.join(j.worktree, "node_modules"))) fs.symlinkSync(path.join(root, "node_modules"), path.join(j.worktree, "node_modules"), "junction");
-  else if (cfg?.setup) { const s = await run(cfg.setup, j.worktree); j.gates.push({ name: "setup", ok: s.code === 0, detail: `${cfg.setup} -> exit ${s.code}` }); }
+  // dependencies: reuse the main checkout's node_modules (root and sub-packages) when present; otherwise run setup
+  const shared = ["", ...fs.readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith(".")).map((d) => d.name)]
+    .filter((d) => fs.existsSync(path.join(root, d, "node_modules")) && fs.existsSync(path.join(j.worktree, d)));
+  for (const d of shared) if (!fs.existsSync(path.join(j.worktree, d, "node_modules"))) fs.symlinkSync(path.join(root, d, "node_modules"), path.join(j.worktree, d, "node_modules"), "junction");
+  if (!shared.length && cfg?.setup) { const s = await run(cfg.setup, j.worktree); j.gates.push({ name: "setup", ok: s.code === 0, detail: `${cfg.setup} -> exit ${s.code}` }); }
   log(`[${j.id}] building`);
   const r = await runNexus(j.worktree, j.task, o.model || cfg?.models?.build, o.maxCost || "1");
   j.build = { outcome: r.outcome, summary: r.summary, requests: r.requests || 0, cost: r.usage?.cost?.source === "unknown" ? null : r.usage?.cost?.total ?? null, reviews: r.reviews || [] };
   j.stage = "gates"; save(root, j);
   // gates, all deterministic
-  git(j.worktree, "add", "-A", "--", ".", ":!.nexus", ":!node_modules");
+  git(j.worktree, "add", "-A", "--", ".", ":!.nexus", ":(glob,exclude)**/node_modules");
   j.changed = git(j.worktree, "diff", "--cached", "--name-only").stdout.split("\n").filter(Boolean);
   j.gates.push({ name: "agent finished", ok: r.outcome === "done", detail: `${r.outcome}${r.summary ? `: ${r.summary}` : ""}` });
   j.gates.push({ name: "changed something", ok: j.changed.length > 0, detail: `${j.changed.length} file(s)` });

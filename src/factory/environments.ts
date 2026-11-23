@@ -27,7 +27,7 @@ export const ENVIRONMENTS: Environment[] = [
     { what: "git line endings", cmd: ["git", "config", "core.autocrlf"], fix: "git config --global core.autocrlf input", ok: (o) => o.trim() !== "true" },
   ] },
   { id: "powershell", title: "Windows PowerShell", skill: "env-powershell", evidence: (_r, files) => [...(process.platform === "win32" ? ["running on Windows"] : []), ...has(files, /\.(ps1|psm1|psd1)$/i)], checks: [
-    { what: "PowerShell 7 (pwsh)", cmd: ["pwsh", "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"], fix: "winget install Microsoft.PowerShell", ok: (o) => +o.trim() >= 7 },
+    { what: "PowerShell 7 (pwsh)", cmd: ["pwsh", "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"], fix: process.platform === "win32" ? "winget install Microsoft.PowerShell" : process.platform === "darwin" ? "brew install powershell/tap/powershell" : "sudo snap install powershell --classic (or see learn.microsoft.com/powershell/scripting/install/installing-powershell-on-linux)", ok: (o) => +o.trim() >= 7 },
   ] },
   { id: "docker", title: "Containers", skill: "env-local", evidence: (_r, files) => has(files, /(^|\/)(Dockerfile[^/]*|(docker-)?compose\.ya?ml|\.dockerignore)$/), checks: [
     { what: "docker", cmd: ["docker", "version", "--format", "{{.Server.Version}}"], fix: "install Docker Desktop (Windows/macOS) or docker-ce (Linux) and start the daemon" },
