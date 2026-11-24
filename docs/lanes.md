@@ -23,7 +23,7 @@ nexus profile apply
 ## A new project, start to finish
 
 ```bash
-nexus new "<what to build>" --build
+nexus new "<what to build>" --build --until-done --budget 5
 ```
 
 1. **Spec and backlog.** The agent writes:
@@ -38,7 +38,8 @@ nexus new "<what to build>" --build
 4. **Commit** everything under your identity.
 5. **Handover check.** If anything fails, the agent gets one repair round, then the check runs again.
 6. **Build** (with `--build`): the first backlog items (`--take 5`) run in lanes and merge when every gate passes.
-   `nexus lanes backlog` continues with the rest.
+   With `--until-done`, rounds continue until the backlog is finished (see "Finishing the backlog" below);
+   otherwise `nexus lanes backlog` continues with the rest.
 
 `nexus new` refuses a folder that already has files in it; use `nexus init` there.
 
@@ -150,6 +151,27 @@ instead of a production deploy. Skills are loaded only when a task needs them.
 
 `nexus lanes run "<task>" "<task>" ... [--parallel 3] [--merge] [--model <m>] [--max-cost 1]`, or
 `nexus lanes backlog` to take the unchecked `- [ ]` items from `BACKLOG.md`.
+
+### Finishing the backlog
+
+`nexus lanes backlog --until-done [--budget 5] [--attempts 2] [--max-rounds 20] [--take 5]` repeats rounds:
+1. Take the next unchecked items, skipping held ones, and commit the ticks.
+2. Run them in lanes, merging every approved job.
+3. Record each outcome on its item's line and commit. Nexus writes these notes, replacing anything an agent wrote
+   there.
+
+An item is **held for you** after `--attempts` failed jobs, or after one job that touched an escalation path, since a
+retry would hit the same gate.
+
+The loop stops when any of these is true:
+- the backlog is finished;
+- only held items are left;
+- the budget is spent;
+- the round limit is reached;
+- nothing could be started.
+
+It prints the reason, how many items were merged, the cost, and each held or still-open item. It exits with a
+non-zero status unless the backlog is finished, so scripts and CI can tell.
 
 1. **Plan lanes.** Each task's likely files come from the code index, or from the files the task names, plus their
    tests. Tasks that would touch the same files share a lane and run one after another; lanes run in parallel.

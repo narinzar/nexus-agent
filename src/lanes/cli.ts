@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { init, validate, readConfig } from "./init.ts";
 import { preflight, ENVIRONMENTS } from "./environments.ts";
 import { loadProfile, saveProfile, setKey, applyProfile, profilePath, userInstructionFiles } from "./profile.ts";
-import { runJobs, listJobs, mergeJob, runBacklog, runNexus } from "./jobs.ts";
+import { runJobs, listJobs, mergeJob, runBacklog, runNexus, runUntilDone, type UntilResult } from "./jobs.ts";
 import { handoverCheck, ready } from "./handover.ts";
 
 type Opt = (n: string, d?: string) => string | undefined;
@@ -64,6 +64,11 @@ export async function lanesCli(root: string, rest: () => string[], opt: Opt, fla
   }
   if (sub === "backlog") {
     if (!fs.existsSync(file)) return console.log(`no ${path.relative(root, file)}: write tasks as "- [ ] task" lines`);
+    if (flag("--until-done")) {
+      const r = await runUntilDone(root, file, { ...o, ...untilOpts(opt), take });
+      if (r.jobs.length) show(r.jobs);
+      printUntil(r); if (r.open.length || r.held.length) process.exitCode = 1; return;
+    }
     const jobs = await runBacklog(root, file, take, o);
     if (!jobs.length) return console.log("backlog has no unchecked items");
     show(jobs); return;
@@ -84,7 +89,18 @@ export async function lanesCli(root: string, rest: () => string[], opt: Opt, fla
   show();
 }
 
-const printChecks = (cs: { ok: boolean; name: string; detail: string }[]) => { for (const c of cs) console.log(`  ${c.ok ? "ok  " : "FAIL"}  ${c.name.padEnd(20)} ${c.detail}`.slice(0, 200)); };
+const untilOpts = (opt: Opt) => {
+  const b = opt("--budget"), a = opt("--attempts"), m = opt("--max-rounds");
+  return { budget: b ? +b : undefined, attempts: a ? +a : undefined, maxRounds: m ? +m : undefined };
+};
+
+function printUntil(r: UntilResult) {
+  console.log(`\nuntil-done: ${r.stop} after ${r.rounds} round(s); ${r.done} item(s) merged; cost $${r.cost.toFixed(3)}`);
+  for (const h of r.held) console.log(`  held for you: ${h}`.slice(0, 160));
+  for (const h of r.open) console.log(`  still open:   ${h}`.slice(0, 160));
+}
+
+const printChecks =(cs: { ok: boolean; name: string; detail: string }[]) => { for (const c of cs) console.log(`  ${c.ok ? "ok  " : "FAIL"}  ${c.name.padEnd(20)} ${c.detail}`.slice(0, 200)); };
 
 export async function newCli(rest: () => string[], opt: Opt, flag: (n: string) => boolean) {
   const description = rest().filter(Boolean).join(" ").trim();
@@ -92,7 +108,7 @@ export async function newCli(rest: () => string[], opt: Opt, flag: (n: string) =
   const slug = description.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").split("-").slice(0, 4).join("-") || "project";
   const dir = path.resolve(opt("--dir", slug)!);
   const { createProject } = await import("./new.ts");
-  const r = await createProject(dir, description, { model: opt("--model"), maxCost: opt("--max-cost", "3"), build: flag("--build"), take: +(opt("--take", "5")!), parallel: +(opt("--parallel", "3")!), log: (s) => console.error(`[new] ${s}`) });
+  const r = await createProject(dir, description, { model: opt("--model"), maxCost: opt("--max-cost", "3"), build: flag("--build"), untilDone: flag("--until-done"), ...untilOpts(opt), take: +(opt("--take", "5")!), parallel: +(opt("--parallel", "3")!), log: (s) => console.error(`[new] ${s}`) });
   console.log(`\n${r.dir}\nhandover check:`);
   printChecks(r.checks);
   for (const j of r.jobs) console.log(`  job ${j.id.padEnd(46)} ${j.stage}`);

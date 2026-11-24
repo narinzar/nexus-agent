@@ -201,11 +201,12 @@ export function listJobs(root: string): Job[] {
 }
 
 /** Unchecked items of a Markdown backlog ("- [ ] task"). Claimed items are ticked so another session skips them. */
-export function takeBacklog(file: string, n: number): string[] {
+export function takeBacklog(file: string, n: number, skip: (head: string) => boolean = () => false): string[] {
   const lines = fs.readFileSync(file, "utf8").split("\n"), out: string[] = [], today = new Date().toISOString().slice(0, 10);
   for (let i = 0; i < lines.length && out.length < n; i++) {
     const m = lines[i].match(/^(\s*[-*] )\[ \] (.+)$/); if (!m) continue;
     const head = m[2].replace(/\s*\((needs-human|failed|approved|merged|building|gates)[^)]*\)\s*$/, "").trimEnd();
+    if (skip(head)) continue;
     // an item continues on the following lines indented deeper than its bullet, until the next item or a blank line
     const body: string[] = [];
     for (let k = i + 1; k < lines.length && lines[k].trim() && /^\s/.test(lines[k]) && lines[k].search(/\S/) > m[1].search(/[-*]/) && !/^\s*[-*] \[/.test(lines[k]); k++) body.push(lines[k].trim());
@@ -220,8 +221,8 @@ export function takeBacklog(file: string, n: number): string[] {
  * Work through BACKLOG.md: take the next unchecked items, commit the ticks (so merges find a clean checkout), run them
  * in lanes, then record each outcome on its line and commit that.
  */
-export async function runBacklog(root: string, file: string, take: number, o: LanesOptions = {}): Promise<Job[]> {
-  const tasks = takeBacklog(file, take);
+export async function runBacklog(root: string, file: string, take: number, o: LanesOptions = {}, skip?: (head: string) => boolean): Promise<Job[]> {
+  const tasks = takeBacklog(file, take, skip);
   if (!tasks.length) return [];
   const rel = path.relative(root, file), me = loadProfile();
   const id = me.git.name && me.git.email ? ["-c", `user.name=${me.git.name}`, "-c", `user.email=${me.git.email}`] : [];
@@ -244,4 +245,42 @@ export function settleBacklog(text: string, jobs: Pick<Job, "id" | "task" | "sta
     if (j.stage === "approved") return `${pre}[x] ${head} (approved, not merged: job ${n})`;
     return `${pre}[ ] ${head} (${j.stage}: see job ${n})`;
   });
+}
+
+export interface UntilOptions extends LanesOptions { take?: number; budget?: number; attempts?: number; maxRounds?: number }
+export interface UntilResult { rounds: number; jobs: Job[]; cost: number; done: number; open: string[]; held: string[]; stop: string }
+
+/** Unchecked backlog items, by the head of each line (without any outcome note). */
+export function openItems(file: string): string[] {
+  return [...fs.readFileSync(file, "utf8").matchAll(/^\s*[-*] \[ \] (.+)$/gm)].map((m) => m[1].replace(/\s*\([^()]*\)\s*$/, "").trimEnd());
+}
+
+/**
+ * Finish the backlog: run rounds of `runBacklog` (merging what passes) until no item is left, or until a round merges
+ * nothing, the budget is spent, or maxRounds is reached. An item whose jobs failed `attempts` times is held for the
+ * owner and skipped, so one hard item cannot stall the rest.
+ */
+export async function runUntilDone(root: string, file: string, o: UntilOptions = {}, round: typeof runBacklog = runBacklog): Promise<UntilResult> {
+  const log = o.log || (() => {}), attempts = o.attempts ?? 2, maxRounds = o.maxRounds ?? 20, all: Job[] = [];
+  // an item is held for the owner after `attempts` failed jobs, or at once when it touched an escalation path
+  // (a retry would hit the same gate); every round that does not merge an item adds a failure, so the loop ends
+  const held = (head: string) => {
+    const failed = listJobs(root).filter((j) => (j.task === head || j.task.startsWith(`${head} `)) && j.stage !== "merged" && j.stage !== "approved");
+    return failed.length >= attempts || failed.some((j) => j.reasons.some((r) => r.startsWith("touches escalation paths")));
+  };
+  let cost = 0, rounds = 0, stop = "";
+  while (true) {
+    const eligible = openItems(file).filter((h) => !held(h));
+    if (!eligible.length) { stop = openItems(file).length ? "only held items are left" : "backlog finished"; break; }
+    if (rounds >= maxRounds) { stop = `reached ${maxRounds} rounds`; break; }
+    if (o.budget != null && cost >= o.budget) { stop = `budget of $${o.budget} spent`; break; }
+    rounds++; log(`round ${rounds}: ${eligible.length} item(s) open`);
+    const jobs = await round(root, file, o.take ?? 5, { ...o, merge: true }, held);
+    all.push(...jobs); cost += jobs.reduce((s, j) => s + (j.build?.cost || 0), 0);
+    const merged = jobs.filter((j) => j.stage === "merged").length;
+    log(`round ${rounds}: ${merged}/${jobs.length} merged, $${cost.toFixed(3)} so far`);
+    if (!jobs.length) { stop = "nothing could be started"; break; }
+  }
+  const open = openItems(file);
+  return { rounds, jobs: all, cost, done: all.filter((j) => j.stage === "merged").length, open: open.filter((h) => !held(h)), held: open.filter(held), stop };
 }

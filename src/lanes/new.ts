@@ -8,10 +8,10 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { init } from "./init.ts";
 import { loadProfile } from "./profile.ts";
-import { runNexus, runBacklog, type Job, type LanesOptions } from "./jobs.ts";
+import { runNexus, runBacklog, runUntilDone, type Job, type UntilOptions } from "./jobs.ts";
 import { handoverCheck, ready, failures, type Check } from "./handover.ts";
 
-export interface NewOptions extends LanesOptions { build?: boolean; take?: number }
+export interface NewOptions extends UntilOptions { build?: boolean; untilDone?: boolean }
 export interface NewResult { dir: string; checks: Check[]; ready: boolean; cost: number; jobs: Job[]; notes: string[] }
 
 export const SCAFFOLD = (description: string) => `Start a new project in this empty repository.
@@ -75,8 +75,12 @@ export async function createProject(dir: string, description: string, o: NewOpti
   if (o.build) {
     if (!ok) notes.push("backlog not built: the skeleton is not ready for handover");
     else {
-      log("building the backlog in lanes");
-      jobs = await runBacklog(dir, path.join(dir, "BACKLOG.md"), o.take || 5, { ...o, merge: true });
+      log(`building the backlog in lanes${o.untilDone ? " until it is done" : ""}`);
+      const file = path.join(dir, "BACKLOG.md");
+      if (o.untilDone) {
+        const u = await runUntilDone(dir, file, { ...o, budget: o.budget != null ? Math.max(0, o.budget - cost) : undefined });
+        jobs = u.jobs; notes.push(`until-done: ${u.stop} after ${u.rounds} round(s)`, ...u.held.map((h) => `held for you: ${h}`), ...u.open.map((h) => `still open: ${h}`));
+      } else jobs = await runBacklog(dir, file, o.take || 5, { ...o, merge: true });
       for (const j of jobs) add({ usage: { cost: { total: j.build?.cost || 0 } } });
     }
   }

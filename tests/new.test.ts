@@ -108,3 +108,42 @@ test("backlog outcomes overwrite an agent's own tick on its item", () => {
   const out = settleBacklog("- [x] **2. list** - prints. (job 002 done)\n- [ ] other\n", [{ id: "003-2-list", task: "**2. list** - prints. Files: a.py", stage: "merged" }] as any);
   assert.equal(out, "- [x] **2. list** - prints. (done: job 003)\n- [ ] other\n");
 });
+
+// A stand-in for one lanes round: takes items like the real one, decides each outcome from its name, records jobs.
+function fakeRound(outcome: (task: string) => { stage: string; reasons?: string[] }) {
+  let n = 0;
+  return async (root: string, file: string, take: number, _o: any, skip?: (h: string) => boolean) => {
+    const { takeBacklog, settleBacklog } = await import("../src/lanes/jobs.ts");
+    const jobs = takeBacklog(file, take, skip).map((task) => {
+      const id = `${String(++n).padStart(3, "0")}-x`, j = { id, task, reasons: [], build: { cost: 0.5 }, ...outcome(task) };
+      fs.mkdirSync(path.join(root, ".nexus/jobs", id), { recursive: true }); fs.writeFileSync(path.join(root, ".nexus/jobs", id, "job.json"), JSON.stringify(j));
+      return j;
+    });
+    fs.writeFileSync(file, settleBacklog(fs.readFileSync(file, "utf8"), jobs as any));
+    return jobs as any;
+  };
+}
+
+test("until-done: finishes what it can, retries a failing item, then holds it for the owner", async () => {
+  const { runUntilDone } = await import("../src/lanes/jobs.ts");
+  const root = tmp("nexus-until-"), file = path.join(root, "BACKLOG.md");
+  fs.writeFileSync(file, "- [ ] a\n- [ ] hard\n- [ ] c\n- [ ] deps\n");
+  const r = await runUntilDone(root, file, { take: 2 }, fakeRound((t) =>
+    t === "hard" ? { stage: "needs-human", reasons: ["test: failed"] } : t === "deps" ? { stage: "needs-human", reasons: ["touches escalation paths: package.json"] } : { stage: "merged" }));
+  assert.equal(r.stop, "only held items are left");
+  assert.equal(r.done, 2);
+  assert.deepEqual(r.held.sort(), ["deps", "hard"]);
+  assert.equal(r.jobs.filter((j) => j.task === "hard").length, 2, "a failing item is tried twice");
+  assert.equal(r.jobs.filter((j) => j.task === "deps").length, 1, "an escalated item is not retried");
+  assert.match(fs.readFileSync(file, "utf8"), /- \[x\] a \(done: job \d+\)/);
+});
+
+test("until-done: stops at the budget, and reports a finished backlog", async () => {
+  const { runUntilDone } = await import("../src/lanes/jobs.ts");
+  const root = tmp("nexus-until-"), file = path.join(root, "BACKLOG.md");
+  fs.writeFileSync(file, "- [ ] a\n- [ ] b\n- [ ] c\n");
+  const r = await runUntilDone(root, file, { take: 2, budget: 1 }, fakeRound(() => ({ stage: "merged" })));
+  assert.equal(r.rounds, 1); assert.match(r.stop, /budget/); assert.deepEqual(r.open, ["c"]);
+  const done = await runUntilDone(root, file, { take: 2 }, fakeRound(() => ({ stage: "merged" })));
+  assert.equal(done.stop, "backlog finished"); assert.deepEqual(done.open, []);
+});

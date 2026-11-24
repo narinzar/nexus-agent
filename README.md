@@ -82,14 +82,14 @@ nexus profile apply
 **Starting from scratch:**
 
 ```bash
-nexus new "a CLI that keeps a reading list in a JSON file: add, list, mark read, stats" --build
+nexus new "a CLI that keeps a reading list in a JSON file: add, list, mark read, stats" --build --until-done --budget 5
 ```
 
 - `nexus new` creates the folder, writes `SPEC.md` and `BACKLOG.md`, builds the skeleton, prepares it for agents (as
   `nexus init` below), commits it under your identity, and runs the handover check. If something fails, it gives the
   agent one round to repair it.
-- With `--build`, it then builds the first backlog items in lanes (`--take 5` by default). Run `nexus lanes backlog`
-  for the rest.
+- With `--build`, it then builds the first backlog items in lanes (`--take 5` by default). Add `--until-done` to keep
+  going until the backlog is finished (see step 3).
 
 **Handing over a repository you already have:**
 
@@ -151,8 +151,21 @@ about a tenth of the price.
 nexus lanes run "add X" "fix Y" "rename Z" --parallel 3 --merge
 ```
 
-Or work through `BACKLOG.md` (written by `nexus new`, or by you as `- [ ]` lines) with `nexus lanes backlog`. Each
-item's outcome is recorded on its line. Items that did not land go back to unchecked, with the job id.
+Or work through `BACKLOG.md` (written by `nexus new`, or by you as `- [ ]` lines):
+
+```bash
+nexus lanes backlog --until-done --budget 5
+```
+
+- Each round takes the next items (`--take 5`), runs them in lanes and merges what passes. Rounds repeat until the
+  backlog is finished.
+- Nexus records each item's outcome on its line. An item that did not land goes back to unchecked, with the job id,
+  and is retried.
+- After `--attempts` failed jobs (2 by default), an item is held for you. An item that touched a risky path is held at
+  once, since a retry would hit the same gate. Either way, one hard item never stalls the rest.
+- The loop also stops at `--budget` dollars or `--max-rounds` (20). It ends by listing what was merged, what is held
+  for you, and what is still open.
+- Without `--until-done`, `nexus lanes backlog` runs a single round.
 
 1. **Plan:** tasks that would touch the same files share a lane and run one after another; lanes run in parallel.
 2. **Isolate:** each task gets its own branch and worktree.

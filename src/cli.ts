@@ -21,9 +21,9 @@ Repository intelligence (incremental index in .nexus/index.db)
   grep <pattern>            ripgrep with capped output
 
 Start or hand over a project, then build it in parallel lanes
-  new "<what to build>" [--dir <path>] [--build [--take 5]]
+  new "<what to build>" [--dir <path>] [--build [--until-done] [--budget 5] [--take 5]]
                             start from scratch: SPEC.md, BACKLOG.md, a skeleton with every check, ready for handover;
-                            --build then works through the backlog in lanes
+                            --build then works through the backlog in lanes; --until-done keeps going until it is finished
   handover [--fix] [--spec] [--quick]
                             is this repository ready for the next agent? (commands, tests, README, instructions,
                             no secrets, committed, checks pass); --fix asks the agent to repair what fails
@@ -33,7 +33,9 @@ Start or hand over a project, then build it in parallel lanes
   env [check [ids] | list]  environment preflight: tools and sign-in, with the fix command for each failure
   profile [set|add|apply]   personal rules (~/.nexus/profile.json), written to user-level agent files, never to repositories
   lanes run "<task>" ... [--parallel 3] [--merge]     one worktree + branch per task; review; deterministic gates
-  lanes backlog [--file BACKLOG.md] [--take 5]        run the unchecked "- [ ]" items
+  lanes backlog [--file BACKLOG.md] [--take 5]        run the next unchecked "- [ ]" items
+  lanes backlog --until-done [--budget 5] [--attempts 2] [--max-rounds 20]
+                            rounds until the backlog is finished; an item failing --attempts times is held for you
   lanes [status] | merge <id> | clean                 ("factory" still works as an alias)
 
 Agent
