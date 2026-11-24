@@ -91,3 +91,15 @@ test("commands: Makefile targets win over guessed defaults; Python runs in its u
   r = await init(dir, { dry: true });
   assert.deepEqual(r.config.commands.filter((c) => c.kind === "test").map((c) => c.cmd), ["make test-fast"]);
 });
+
+test("backlog items: continuation lines belong to the item, markdown titles make clean commit subjects, retries drop old outcomes", async () => {
+  const { takeBacklog, subject } = await import("../src/lanes/jobs.ts");
+  const f = path.join(tmp("nexus-bl2-"), "BACKLOG.md");
+  fs.writeFileSync(f, "# Backlog\n\n- [ ] **1. `add` command** - appends a book.\n  Files: `src/cli.py`. Tests in `tests/test_add.py`.\n- [ ] **2. `list` command** - prints books. (needs-human: see job 002)\n  Files: `src/cli.py`.\n\nNotes.\n");
+  const tasks = takeBacklog(f, 5);
+  assert.deepEqual(tasks, ["**1. `add` command** - appends a book. Files: `src/cli.py`. Tests in `tests/test_add.py`.", "**2. `list` command** - prints books. Files: `src/cli.py`."]);
+  assert.equal(subject(tasks[0]), "`add` command");
+  assert.equal(subject("1. Fix the login redirect. It loops."), "Fix the login redirect");
+  const settled = settleBacklog(fs.readFileSync(f, "utf8"), [{ id: "003-x", task: tasks[0], stage: "merged" }] as any);
+  assert.match(settled, /- \[x\] \*\*1\. `add` command\*\* - appends a book\. \(done: job 003\)\n  Files: `src\/cli\.py`\. Tests/);
+});

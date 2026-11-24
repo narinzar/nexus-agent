@@ -121,7 +121,11 @@ export const GATE_KINDS = ["typecheck", "lint", "test", "build"];
 
 /** Commit subject from the task: its first sentence, cut at a word boundary to 72 characters. */
 export function subject(task: string): string {
-  const first = task.trim().split("\n")[0].split(/(?<=[a-z0-9)'"`])[.:;](\s|$)/i)[0].trim();
+  let t = task.trim().split("\n")[0];
+  const bold = t.match(/^\*\*(.+?)\*\*/); if (bold) t = bold[1]; // a backlog item's bold title is its name
+  t = t.replace(/\*\*|__/g, "").replace(/^\s*(\d+[.)]|[-*])\s+/, "").trim();
+  t = t.charAt(0).toUpperCase() + t.slice(1);
+  const first = t.split(/(?<=[a-z0-9)'"`])[.:;](\s|$)/i)[0].trim();
   if (first.length <= 72) return first;
   const cut = first.slice(0, 71); return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 40)).replace(/[\s,;:(-]+$/, "")}…`;
 }
@@ -198,9 +202,17 @@ export function listJobs(root: string): Job[] {
 
 /** Unchecked items of a Markdown backlog ("- [ ] task"). Claimed items are ticked so another session skips them. */
 export function takeBacklog(file: string, n: number): string[] {
-  const text = fs.readFileSync(file, "utf8"), out: string[] = [];
-  const next = text.replace(/^(\s*[-*] )\[ \] (.+)$/gm, (m, pre, t) => { if (out.length >= n) return m; out.push(t.trim()); return `${pre}[x] ${t} (job started ${new Date().toISOString().slice(0, 10)})`; });
-  fs.writeFileSync(file, next);
+  const lines = fs.readFileSync(file, "utf8").split("\n"), out: string[] = [], today = new Date().toISOString().slice(0, 10);
+  for (let i = 0; i < lines.length && out.length < n; i++) {
+    const m = lines[i].match(/^(\s*[-*] )\[ \] (.+)$/); if (!m) continue;
+    const head = m[2].replace(/\s*\((needs-human|failed|approved|merged|building|gates)[^)]*\)\s*$/, "").trimEnd();
+    // an item continues on the following lines indented deeper than its bullet, until the next item or a blank line
+    const body: string[] = [];
+    for (let k = i + 1; k < lines.length && lines[k].trim() && /^\s/.test(lines[k]) && lines[k].search(/\S/) > m[1].search(/[-*]/) && !/^\s*[-*] \[/.test(lines[k]); k++) body.push(lines[k].trim());
+    out.push([head, ...body].join(" "));
+    lines[i] = `${m[1]}[x] ${head} (job started ${today})`;
+  }
+  fs.writeFileSync(file, lines.join("\n"));
   return out;
 }
 
@@ -224,7 +236,7 @@ export async function runBacklog(root: string, file: string, take: number, o: La
 /** Rewrite the "(job started ...)" ticks with each job's outcome; items that did not land go back to unchecked. */
 export function settleBacklog(text: string, jobs: Pick<Job, "id" | "task" | "stage">[]): string {
   return text.replace(/^(\s*[-*] )\[x\] (.+?) \(job started [\d-]+\)$/gm, (m, pre, t) => {
-    const j = jobs.find((x) => x.task === t.trim()); if (!j) return m;
+    const j = jobs.find((x) => x.task === t.trim() || x.task.startsWith(`${t.trim()} `)); if (!j) return m;
     if (j.stage === "merged") return `${pre}[x] ${t} (done: job ${j.id.split("-")[0]})`;
     if (j.stage === "approved") return `${pre}[x] ${t} (approved, not merged: job ${j.id.split("-")[0]})`;
     return `${pre}[ ] ${t} (${j.stage}: see job ${j.id.split("-")[0]})`;
