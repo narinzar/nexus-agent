@@ -8,17 +8,7 @@ it ready for whoever picks it up next. Three steps:
 
 This guide covers steps 1 and 3, and the handover check that runs through all of them.
 
-## Once per machine
-
-```bash
-nexus profile set git.name <your-name>
-```
-```bash
-nexus profile set git.email <your-email>
-```
-```bash
-nexus profile apply
-```
+The commands, step by step, are in [guide.md](guide.md). This page explains what each step does and why.
 
 ## A new project, start to finish
 
@@ -45,18 +35,8 @@ nexus new "<what to build>" --build --until-done --budget 5
 
 ## An existing repository
 
-```bash
-nexus init
-```
-```bash
-nexus env check
-```
-```bash
-nexus handover
-```
-```bash
-nexus lanes run "add X" "fix Y" "rename Z" --parallel 3 --merge
-```
+`nexus init` writes what is described under "What `nexus init` writes" below, `nexus env check` runs each detected
+environment's preflight, and `nexus handover` reports what the next agent would trip over.
 
 ## The handover check
 

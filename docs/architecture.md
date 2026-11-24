@@ -99,11 +99,12 @@ Approval policy: `always`, `risky` (default: network, deletes, installs, git pus
 restores it. Sandboxing processes with bubblewrap/seccomp, a container or a VM is a roadmap item; until then the
 boundary is enforced in the tool layer.
 
-## MVP (built; status 2026-11-22)
+## What is built (status 2026-11-24)
 
-All seven items below are implemented and tested (`npm run check`). End-to-end results are in
-[benchmarks/REPORT.md](../benchmarks/REPORT.md): 9/9 hidden tests passed across 6 languages, using 38× fewer input tokens and
-3.7× fewer requests than stock Claude Code with the same model.
+Everything below is implemented and tested (`npm run check`). End-to-end results are in
+[benchmarks/REPORT.md](../benchmarks/REPORT.md). On focused changes in 6 languages (3 runs each), Nexus passed 27/27
+with 37× fewer input tokens, 3.6× fewer requests and 81% lower cost than stock Claude Code with the same model. On
+real-repository tasks it passed 18/21 against Claude Code's 17/21, at 38% lower cost.
 
 1. `nexus index | status | doctor`: detection and a multi-language index (L0 + L1) in SQLite. Queries: `find`, `ctx`,
    `refs`, `show`, `map`, `locate`, `impact`.
@@ -116,6 +117,11 @@ All seven items below are implemented and tested (`npm run check`). End-to-end r
 6. Skills: discovery and catalogue in agentskills.io format, activation by relevance, `skills new|install`.
 7. Benchmarks: fixtures in several languages with gold files, tests and edit tasks; the earlier navigation-button task;
    a mini-swe-agent-style bash-only baseline and stock Claude Code as baselines.
+8. Review: one self-review round of the full diff before a change is accepted (`--review auto|always|off`).
+9. Starting and handing over: `nexus new` (spec, backlog, skeleton), `nexus init`, `nexus handover`, environment
+   checks and a personal profile ([lanes.md](lanes.md)).
+10. Lanes: parallel jobs in worktrees with mechanical gates, local merge, backlog rounds and `--until-done`
+    ([lanes.md](lanes.md)).
 
 ## Roadmap after the MVP
 
