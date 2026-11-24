@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "project": {
+    "languages": [
+      "python"
+    ],
+    "frameworks": [
+      "pytest",
+      "numpy"
+    ],
+    "entryPoints": [
+      "src/readlist/__main__.py",
+      "src/readlist/cli.py"
+    ],
+    "docs": [
+      "README.md",
+      "docs/decisions.md"
+    ],
+    "ci": []
+  },
+  "setup": "uv sync",
+  "commands": [
+    {
+      "kind": "build",
+      "cmd": "make build",
+      "evidence": "Makefile"
+    },
+    {
+      "kind": "typecheck",
+      "cmd": "make typecheck",
+      "evidence": "Makefile"
+    },
+    {
+      "kind": "lint",
+      "cmd": "make lint",
+      "evidence": "Makefile"
+    },
+    {
+      "kind": "test",
+      "cmd": "make test",
+      "evidence": "Makefile"
+    },
+    {
+      "kind": "format",
+      "cmd": "make format",
+      "evidence": "Makefile"
+    },
+    {
+      "kind": "run",
+      "cmd": "make run",
+      "evidence": "Makefile"
+    }
+  ],
+  "environments": [
+    {
+      "id": "local",
+      "title": "Local machine",
+      "skill": "env-local",
+      "evidence": [
+        "always"
+      ]
+    }
+  ],
+  "rules": [],
+  "agents": [
+    "agents",
+    "claude"
+  ],
+  "skills": [
+    {
+      "name": "build-for-handover",
+      "source": "nexus-agent/skills/build-for-handover",
+      "hash": "76f4f1c3c7139b35"
+    },
+    {
+      "name": "code-review",
+      "source": "nexus-agent/skills/code-review",
+      "hash": "1b1e2ad1587985af"
+    },
+    {
+      "name": "git-workflow",
+      "source": "nexus-agent/skills/git-workflow",
+      "hash": "62abdbaa65ed1ad0"
+    },
+    {
+      "name": "testing",
+      "source": "nexus-agent/skills/testing",
+      "hash": "f3e927ac211b06c5"
+    },
+    {
+      "name": "debugging",
+      "source": "nexus-agent/skills/debugging",
+      "hash": "ea2fefd8b0451fe1"
+    },
+    {
+      "name": "env-local",
+      "source": "nexus-agent/skills/env-local",
+      "hash": "de19fe0fb0ceda69"
+    }
+  ],
+  "escalate": [
+    ".github/workflows/**",
+    ".gitlab-ci.yml",
+    "**/Dockerfile*",
+    "**/*compose*.y*ml",
+    "**/migrations/**",
+    "**/*.sql",
+    "**/auth/**",
+    "**/.env*",
+    "**/*.tf",
+    "**/serverless.y*ml",
+    "**/app.y*ml",
+    "**/cloudbuild.y*ml",
+    "**/package.json",
+    "**/pyproject.toml",
+    "**/go.mod",
+    "**/Cargo.toml",
+    "**/requirements*.txt",
+    "AGENTS.md",
+    "CLAUDE.md"
+  ],
+  "models": {}
+}

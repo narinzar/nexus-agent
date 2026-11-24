@@ -28,6 +28,9 @@ the repository up cold:
 `nexus new` ends with this check. Every lanes job must keep the instructions true. The `build-for-handover` skill
 tells every agent how to build so the check keeps passing.
 
+**See it work:** [examples/](examples/README.md) has a Python CLI that Nexus built from one sentence (6 backlog items, 31
+tests, about $0.06 with DeepSeek), with every commit and job decision.
+
 **Results on real repositories** (7 tasks × 3 runs, hidden tests the agent never sees):
 
 | Configuration | Passed | Cost per task |
@@ -217,6 +220,7 @@ More options: [benchmarks/README.md](benchmarks/README.md).
 | `src/skills/`, `skills/` | how-to guides in the [Agent Skills](https://agentskills.io) format, loaded only when a task needs them: build for handover, debugging, testing, refactoring, code review, git, performance, and one per environment |
 | `src/memory/` | facts remembered between tasks, flagged stale when their files change |
 | `src/benchmark/`, `benchmarks/` | the benchmark runner, task suites, fixtures, hidden tests, raw results, report and charts ([guide](benchmarks/README.md)) |
+| `examples/` | [readlist](examples/README.md): a Python CLI Nexus built from one sentence with `nexus new` and `--until-done`, with every job's decision record |
 | `docs/` | [architecture](docs/architecture.md), [preparing a repository and lanes](docs/lanes.md), [research notes](docs/research.md) on what was reused and why |
 | `tests/` | unit and end-to-end tests (`npm run check`) |
 

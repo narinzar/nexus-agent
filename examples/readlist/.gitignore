@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+
+# Local settings and data - never commit these
+.env
+*.local.json
+readlist.json
+
+# Nexus local state (index, logs, checkpoints, jobs); its config is shared
+.nexus/*
+!.nexus/config.json

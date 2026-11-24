@@ -1,0 +1,54 @@
+[project]
+name = "readlist"
+version = "0.1.0"
+description = "Keep a personal reading list in a local JSON file."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "readlist contributors" }]
+dependencies = []
+
+[project.scripts]
+readlist = "readlist.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "pytest>=8.2",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/readlist"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "SIM", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src", "tests"]
+mypy_path = "src"
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+# pytest ships `py.typed`, so `mypy .` type-checks all of it and, through a
+# `TYPE_CHECKING` import in `_pytest.python_api`, numpy's stubs as well. Those use
+# syntax newer than this project's `python_version` and none of it is our code:
+# check our own modules, treat the test runner and numpy as untyped.
+[[tool.mypy.overrides]]
+module = ["_pytest", "_pytest.*", "pytest", "pytest.*", "numpy", "numpy.*"]
+follow_imports = "skip"
