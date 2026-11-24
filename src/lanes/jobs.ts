@@ -235,10 +235,13 @@ export async function runBacklog(root: string, file: string, take: number, o: La
 
 /** Rewrite the "(job started ...)" ticks with each job's outcome; items that did not land go back to unchecked. */
 export function settleBacklog(text: string, jobs: Pick<Job, "id" | "task" | "stage">[]): string {
-  return text.replace(/^(\s*[-*] )\[x\] (.+?) \(job started [\d-]+\)$/gm, (m, pre, t) => {
-    const j = jobs.find((x) => x.task === t.trim() || x.task.startsWith(`${t.trim()} `)); if (!j) return m;
-    if (j.stage === "merged") return `${pre}[x] ${t} (done: job ${j.id.split("-")[0]})`;
-    if (j.stage === "approved") return `${pre}[x] ${t} (approved, not merged: job ${j.id.split("-")[0]})`;
-    return `${pre}[ ] ${t} (${j.stage}: see job ${j.id.split("-")[0]})`;
+  // Nexus owns the outcome on each item's line: whatever an agent wrote there (its own tick or note) is replaced
+  return text.replace(/^(\s*[-*] )\[[ x]\] (.+)$/gm, (m, pre, t) => {
+    const head = t.replace(/\s*\([^()]*\)\s*$/, "").trimEnd();
+    const j = [...jobs].reverse().find((x) => x.task === head || x.task.startsWith(`${head} `)); if (!j) return m;
+    const n = j.id.split("-")[0];
+    if (j.stage === "merged") return `${pre}[x] ${head} (done: job ${n})`;
+    if (j.stage === "approved") return `${pre}[x] ${head} (approved, not merged: job ${n})`;
+    return `${pre}[ ] ${head} (${j.stage}: see job ${n})`;
   });
 }

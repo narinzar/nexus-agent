@@ -103,3 +103,8 @@ test("backlog items: continuation lines belong to the item, markdown titles make
   const settled = settleBacklog(fs.readFileSync(f, "utf8"), [{ id: "003-x", task: tasks[0], stage: "merged" }] as any);
   assert.match(settled, /- \[x\] \*\*1\. `add` command\*\* - appends a book\. \(done: job 003\)\n  Files: `src\/cli\.py`\. Tests/);
 });
+
+test("backlog outcomes overwrite an agent's own tick on its item", () => {
+  const out = settleBacklog("- [x] **2. list** - prints. (job 002 done)\n- [ ] other\n", [{ id: "003-2-list", task: "**2. list** - prints. Files: a.py", stage: "merged" }] as any);
+  assert.equal(out, "- [x] **2. list** - prints. (done: job 003)\n- [ ] other\n");
+});
