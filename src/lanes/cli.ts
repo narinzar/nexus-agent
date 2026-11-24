@@ -5,7 +5,8 @@ import { spawnSync } from "node:child_process";
 import { init, validate, readConfig } from "./init.ts";
 import { preflight, ENVIRONMENTS } from "./environments.ts";
 import { loadProfile, saveProfile, setKey, applyProfile, profilePath, userInstructionFiles } from "./profile.ts";
-import { runJobs, listJobs, mergeJob, takeBacklog } from "./jobs.ts";
+import { runJobs, listJobs, mergeJob, runBacklog, runNexus } from "./jobs.ts";
+import { handoverCheck, ready } from "./handover.ts";
 
 type Opt = (n: string, d?: string) => string | undefined;
 
@@ -63,9 +64,9 @@ export async function lanesCli(root: string, rest: () => string[], opt: Opt, fla
   }
   if (sub === "backlog") {
     if (!fs.existsSync(file)) return console.log(`no ${path.relative(root, file)}: write tasks as "- [ ] task" lines`);
-    const tasks = takeBacklog(file, take);
-    if (!tasks.length) return console.log("backlog has no unchecked items");
-    show(await runJobs(root, tasks, o)); return;
+    const jobs = await runBacklog(root, file, take, o);
+    if (!jobs.length) return console.log("backlog has no unchecked items");
+    show(jobs); return;
   }
   if (sub === "merge") {
     const j = listJobs(root).find((x) => x.id === a[1] || x.id.startsWith(`${a[1]}-`));
@@ -81,4 +82,36 @@ export async function lanesCli(root: string, rest: () => string[], opt: Opt, fla
     console.log("removed the worktrees and branches of merged and failed jobs (approved and needs-human jobs are kept)"); return;
   }
   show();
+}
+
+const printChecks = (cs: { ok: boolean; name: string; detail: string }[]) => { for (const c of cs) console.log(`  ${c.ok ? "ok  " : "FAIL"}  ${c.name.padEnd(20)} ${c.detail}`.slice(0, 200)); };
+
+export async function newCli(rest: () => string[], opt: Opt, flag: (n: string) => boolean) {
+  const description = rest().filter(Boolean).join(" ").trim();
+  if (!description) return console.log('usage: nexus new "<what to build>" [--dir <path>] [--model m] [--max-cost 3] [--build [--take 5] [--parallel 3]]');
+  const slug = description.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").split("-").slice(0, 4).join("-") || "project";
+  const dir = path.resolve(opt("--dir", slug)!);
+  const { createProject } = await import("./new.ts");
+  const r = await createProject(dir, description, { model: opt("--model"), maxCost: opt("--max-cost", "3"), build: flag("--build"), take: +(opt("--take", "5")!), parallel: +(opt("--parallel", "3")!), log: (s) => console.error(`[new] ${s}`) });
+  console.log(`\n${r.dir}\nhandover check:`);
+  printChecks(r.checks);
+  for (const j of r.jobs) console.log(`  job ${j.id.padEnd(46)} ${j.stage}`);
+  for (const n of r.notes) console.log(`  note: ${n}`);
+  console.log(`cost: $${r.cost.toFixed(3)}\nnext: ${r.ready ? "nexus lanes backlog" : "nexus handover --fix"}`);
+  if (!r.ready) process.exitCode = 1;
+}
+
+export async function handoverCli(root: string, opt: Opt, flag: (n: string) => boolean) {
+  const o = { requireSpec: flag("--spec"), runChecks: !flag("--quick") };
+  let cs = await handoverCheck(root, o);
+  if (!ready(cs) && flag("--fix")) {
+    const { REPAIR } = await import("./new.ts");
+    console.error("[handover] asking the agent to repair it");
+    const r = await runNexus(root, REPAIR(cs), opt("--model"), opt("--max-cost", "2")!, ["--turns", "30"]);
+    console.error(`[handover] ${r.outcome}${r.summary ? `: ${String(r.summary).slice(0, 160)}` : ""} (changes are left uncommitted for you to review)`);
+    cs = await handoverCheck(root, o);
+  }
+  printChecks(cs);
+  console.log(ready(cs) ? "ready for handover" : `not ready for handover${flag("--fix") ? "" : " (nexus handover --fix asks the agent to repair it)"}`);
+  if (!ready(cs)) process.exitCode = 1;
 }

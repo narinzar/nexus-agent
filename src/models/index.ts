@@ -1,4 +1,5 @@
 // Provider selection: "provider:model" specs, environment detection, and routing by task level.
+import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 import type { Provider, Price } from "./types.ts";
 import { anthropic, openaiCompatible, gemini, claudeCli, mock } from "./adapters.ts";
@@ -6,7 +7,7 @@ import { anthropic, openaiCompatible, gemini, claudeCli, mock } from "./adapters
 export interface ModelConfig { default?: string; small?: string; large?: string; prices?: Record<string, Price> }
 
 /** Spec forms: anthropic:<model> | openai:<model> | gemini:<model> | openrouter:<model> | ollama:<model> | lmstudio:<model> |
- *  vllm:<model>@<baseUrl> | compat:<model>@<baseUrl> | claude-cli[:<model>] | mock */
+ *  vllm:<model>@<baseUrl> | compat:<model>@<baseUrl> | claude-cli[:<model>] | mock[:<replies.json>] */
 export function createProvider(spec: string): Provider {
   const [kind, ...rest] = spec.split(":"); const model = rest.join(":");
   const [m, base] = model.split("@");
@@ -19,7 +20,8 @@ export function createProvider(spec: string): Provider {
     case "lmstudio": return openaiCompatible(m, { id: "lmstudio", baseUrl: base || "http://localhost:1234/v1", apiKey: "" });
     case "vllm": case "llamacpp": case "compat": return openaiCompatible(m, { id: kind, baseUrl: base || "http://localhost:8000/v1", apiKey: process.env.COMPAT_API_KEY || "" });
     case "claude-cli": return claudeCli(m);
-    case "mock": return mock(["DONE"]);
+    // mock:<file.json> replays scripted replies (an array of strings) for end-to-end tests without a model
+    case "mock": return mock(model ? JSON.parse(fs.readFileSync(model, "utf8")) : ["DONE"]);
     default: throw new Error(`unknown provider "${kind}" in "${spec}"`);
   }
 }

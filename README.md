@@ -1,20 +1,32 @@
 # Nexus-Agent
 
-**Hand your repository a list of changes. Nexus makes them in parallel lanes, checks and reviews every one, and keeps
-only what passes.**
+**Start a project from a description, or hand over one you already have. Nexus builds it change by change, many in
+parallel, checks and reviews every change, and keeps the repository ready for whoever picks it up next, agent or
+person.**
 
-Describe each change in plain English. Nexus works in any programming language with any AI model, and sends the
-model only the code a change needs, so each change costs less.
+Describe the work in plain English. Nexus works in any programming language with any AI model, and sends the model
+only the code a change needs, so each change costs less.
 
-## How it works, in three steps
+## How it works
 
 | Step | Command | What happens |
 |---|---|---|
-| **1. Prepare the repository** | `nexus init` | Detects the stack, commands and environments, then writes the instructions and skills every coding agent reads. Nexus, Claude Code, Codex, Cursor, Copilot and Gemini all follow the same rules. |
+| **1a. Start from scratch** | `nexus new "<what to build>"` | Writes `SPEC.md` (goal, scope, acceptance criteria, stack) and `BACKLOG.md` (small, testable items in build order), then a runnable skeleton with a script for every check, a passing test and a README. |
+| **1b. Or hand over an existing repository** | `nexus init` | Detects the stack, commands and environments, then writes the instructions and skills every coding agent reads. Nexus, Claude Code, Codex, Cursor, Copilot and Gemini all follow the same rules. |
 | **2. Make a change** | `nexus run "<task>"` | The agent finds the few pieces of code the task needs, edits them, runs the project's checks, reviews its own diff and fixes what it finds. |
-| **3. Run many changes in lanes** | `nexus lanes run "<task>" "<task>" ...` | Runs step 2 for each task in its own branch. Tasks that touch different code run in parallel lanes; tasks that touch the same code share a lane and run in turn. Mechanical gates decide what is accepted, not the model. |
+| **3. Build in lanes** | `nexus lanes backlog` or `nexus lanes run "<task>" ...` | Runs step 2 for each task in its own branch. Tasks that touch different code run in parallel lanes; tasks that touch the same code share a lane and run in turn. Mechanical gates decide what is accepted, not the model. |
 
-Use step 2 alone for a single change. Use all three to hand a repository a backlog.
+**Ready for handover, at every step.** `nexus handover` checks, mechanically, that the next agent or person can pick
+the repository up cold:
+- a command for every check, and they pass;
+- tests exist;
+- the README gives the commands;
+- the agent instructions match the code;
+- no secrets are tracked;
+- everything is committed.
+
+`nexus new` ends with this check. Every lanes job must keep the instructions true. The `build-for-handover` skill
+tells every agent how to build so the check keeps passing.
 
 **Results on real repositories** (7 tasks × 3 runs, hidden tests the agent never sees):
 
@@ -52,7 +64,7 @@ Pick a model with `--model` or the `NEXUS_MODEL` variable:
 
 Behind a corporate or sandbox HTTPS proxy, also set `NODE_USE_ENV_PROXY=1` so Node's `fetch` uses it.
 
-## 1. Prepare the repository
+## 1. Start or hand over a project
 
 Once per machine, set your identity. It goes into your own agent files and into each clone's git config, never
 into shared repositories:
@@ -67,13 +79,28 @@ nexus profile set git.email <your-email>
 nexus profile apply
 ```
 
-Then, in each repository:
+**Starting from scratch:**
+
+```bash
+nexus new "a CLI that keeps a reading list in a JSON file: add, list, mark read, stats" --build
+```
+
+- `nexus new` creates the folder, writes `SPEC.md` and `BACKLOG.md`, builds the skeleton, prepares it for agents (as
+  `nexus init` below), commits it under your identity, and runs the handover check. If something fails, it gives the
+  agent one round to repair it.
+- With `--build`, it then builds the first backlog items in lanes (`--take 5` by default). Run `nexus lanes backlog`
+  for the rest.
+
+**Handing over a repository you already have:**
 
 ```bash
 nexus init
 ```
 ```bash
 nexus env check
+```
+```bash
+nexus handover
 ```
 
 - **`nexus init`** detects the stack, the setup, build, typecheck, lint and test commands, and the environments
@@ -85,6 +112,8 @@ nexus env check
 
   Your own text in those files is never touched, and running it twice changes nothing.
 - **`nexus env check`** checks each environment's tools and sign-in, and prints the exact fix for anything missing.
+- **`nexus handover`** shows what the next agent would trip over. `--fix` asks the agent to repair it and leaves the
+  changes uncommitted for you to review.
 - **`nexus validate`** later tells you when the instructions no longer match the repository.
 
 ## 2. Make a change
@@ -116,19 +145,21 @@ about a tenth of the price.
 - It asks before risky commands: deleting, network access, installs, `git push`.
 - It checkpoints every file it writes and logs every action to `.nexus/log/`.
 
-## 3. Run many changes in lanes
+## 3. Build in lanes
 
 ```bash
 nexus lanes run "add X" "fix Y" "rename Z" --parallel 3 --merge
 ```
 
-Or list tasks as `- [ ]` items in `BACKLOG.md` and run `nexus lanes backlog`.
+Or work through `BACKLOG.md` (written by `nexus new`, or by you as `- [ ]` lines) with `nexus lanes backlog`. Each
+item's outcome is recorded on its line. Items that did not land go back to unchecked, with the job id.
 
 1. **Plan:** tasks that would touch the same files share a lane and run one after another; lanes run in parallel.
 2. **Isolate:** each task gets its own branch and worktree.
 3. **Build:** step 2 runs there, with the review round always on.
 4. **Gate:** a change is accepted only if every check passes:
    - typecheck, lint, tests and build pass;
+   - the agent instructions still match the repository (the handover gate);
    - no risky path was touched (CI, deploy, auth, dependencies, plus any you add);
    - the commit carries your identity;
    - it merges cleanly.
@@ -164,13 +195,13 @@ More options: [benchmarks/README.md](benchmarks/README.md).
 |---|---|
 | `bin/nexus.mjs` | the `nexus` command |
 | `src/cli.ts` | command-line entry: parses commands and dispatches |
-| `src/lanes/` | step 1 and step 3: `init`, `validate`, environment checks, personal profile, parallel jobs with gates |
+| `src/lanes/` | steps 1 and 3: `new`, `init`, `handover`, `validate`, environment checks, personal profile, parallel jobs with gates |
 | `src/repo-intel/` | step 2, the map: language detection, parsers (built-in and tree-sitter), import resolution, SQLite index, queries (`locate`, `ctx`, `map`, ...) |
 | `src/context/` | step 2, what to send: builds each request; tracks what was already sent and what went stale |
 | `src/agent/` | step 2, the loop: classify the task, send code, apply edits, verify, review, repeat |
 | `src/models/` | one small interface for every AI provider, with normalised token and cost accounting |
 | `src/safety/` | permission modes, approvals, workspace boundary, checkpoints, diffs, undo, logs |
-| `src/skills/`, `skills/` | how-to guides in the [Agent Skills](https://agentskills.io) format, loaded only when a task needs them: debugging, testing, refactoring, code review, git, performance, and one per environment |
+| `src/skills/`, `skills/` | how-to guides in the [Agent Skills](https://agentskills.io) format, loaded only when a task needs them: build for handover, debugging, testing, refactoring, code review, git, performance, and one per environment |
 | `src/memory/` | facts remembered between tasks, flagged stale when their files change |
 | `src/benchmark/`, `benchmarks/` | the benchmark runner, task suites, fixtures, hidden tests, raw results, report and charts ([guide](benchmarks/README.md)) |
 | `docs/` | [architecture](docs/architecture.md), [preparing a repository and lanes](docs/lanes.md), [research notes](docs/research.md) on what was reused and why |

@@ -19,14 +19,14 @@ export interface Profile {
 
 type Rule = { id: string; match: RegExp; commands: (dir: string, text: string, root: string) => BuildSystem["commands"]; frameworks?: (text: string) => string[] };
 const pre = (dir: string) => (dir === "." ? "" : `cd ${dir} && `);
-const npmScripts = (dir: string, text: string): BuildSystem["commands"] => {
+const npmScripts = (dir: string, text: string, root: string): BuildSystem["commands"] => {
   let s: Record<string, string> = {}; try { s = JSON.parse(text).scripts || {}; } catch {}
   const run = (k: string) => `${pre(dir)}npm run ${k}`;
   return {
     build: s.build ? run("build") : undefined,
     test: s.test && !/no test specified/.test(s.test) ? `${pre(dir)}npm test` : undefined,
     lint: s.lint ? run("lint") : undefined,
-    typecheck: s.typecheck ? run("typecheck") : s["type-check"] ? run("type-check") : s.tsc ? run("tsc") : fs.existsSync(path.join(dir, "tsconfig.json")) ? `${pre(dir)}npx tsc --noEmit` : undefined,
+    typecheck: s.typecheck ? run("typecheck") : s["type-check"] ? run("type-check") : s.tsc ? run("tsc") : fs.existsSync(path.join(root, dir, "tsconfig.json")) ? `${pre(dir)}npx tsc --noEmit` : undefined,
     run: s.start ? run("start") : s.dev ? run("dev") : undefined,
   };
 };

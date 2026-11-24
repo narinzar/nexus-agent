@@ -1,12 +1,14 @@
-# Preparing a repository and running lanes
+# Starting, handing over and building in lanes
 
-Nexus takes a repository from a list of changes to merged, checked work in three steps: **prepare** the repository (`nexus init`),
-**make a change** (`nexus run`, the agent described in [architecture.md](architecture.md)), and **run many changes in
-parallel lanes** (`nexus lanes run`). This guide covers steps 1 and 3: one command makes a repository ready for Nexus or any
-other coding agent, then several tasks run at once, each in its own branch and worktree, reviewed, checked, and
-merged only when every gate passes.
+Nexus takes a project from a description, or from an existing repository, to checked, reviewed, merged work, and keeps
+it ready for whoever picks it up next. Three steps:
+1. **Start or hand over:** `nexus new` for a new project, `nexus init` for an existing one.
+2. **Make a change:** `nexus run`, the agent described in [architecture.md](architecture.md).
+3. **Build in lanes:** `nexus lanes backlog` or `nexus lanes run`.
 
-## New repository, start to finish
+This guide covers steps 1 and 3, and the handover check that runs through all of them.
+
+## Once per machine
 
 ```bash
 nexus profile set git.name <your-name>
@@ -17,7 +19,31 @@ nexus profile set git.email <your-email>
 ```bash
 nexus profile apply
 ```
-Run those three once per machine. Then, in each repository:
+
+## A new project, start to finish
+
+```bash
+nexus new "<what to build>" --build
+```
+
+1. **Spec and backlog.** The agent writes:
+   - `SPEC.md`: goal, users, scope in and out, features with testable acceptance criteria, the stack with a reason per
+     choice, open questions;
+   - `BACKLOG.md`: the features as `- [ ]` items in build order, each small enough for one agent and naming the
+     behaviour its test checks.
+2. **Skeleton.** The standard layout for the stack, with a script for every check (setup, test, lint, and typecheck and
+   build where they exist), one passing smoke test, a README with the exact commands, `.gitignore` and `.env.example`.
+   The agent installs the dependencies and runs every check until they pass.
+3. **Prepare.** The same as `nexus init` below.
+4. **Commit** everything under your identity.
+5. **Handover check.** If anything fails, the agent gets one repair round, then the check runs again.
+6. **Build** (with `--build`): the first backlog items (`--take 5`) run in lanes and merge when every gate passes.
+   `nexus lanes backlog` continues with the rest.
+
+`nexus new` refuses a folder that already has files in it; use `nexus init` there.
+
+## An existing repository
+
 ```bash
 nexus init
 ```
@@ -25,8 +51,33 @@ nexus init
 nexus env check
 ```
 ```bash
+nexus handover
+```
+```bash
 nexus lanes run "add X" "fix Y" "rename Z" --parallel 3 --merge
 ```
+
+## The handover check
+
+`nexus handover` answers one question: can the next agent or person pick this repository up cold? Every item is
+mechanical:
+
+| Check | Passes when |
+|---|---|
+| agent instructions | `.nexus/config.json` exists and `nexus validate` finds no errors |
+| check commands | a test command is detected (setup, lint, typecheck and build are listed when found) |
+| tests | at least one test file is tracked |
+| README | a README exists and shows commands, including how to test |
+| spec and backlog | (`--spec`, and always after `nexus new`) `SPEC.md` exists and `BACKLOG.md` has items |
+| no secrets tracked | no `.env` files in git, other than `.example`, `.sample` or `.template` |
+| committed | there is a commit and the working tree is clean |
+| checks pass | setup, then typecheck, lint, test and build, each exit 0 (skip with `--quick`) |
+
+`--fix` gives the agent one round to repair what fails, and leaves the changes uncommitted for you to review.
+
+Agents learn to keep the check passing from the `build-for-handover` skill, which is installed in every repository:
+one command per check, a test with every behaviour, a README whose commands work, decisions in `docs/decisions.md`,
+remaining work in `BACKLOG.md`, small files per feature, settings in `.env.example`, locked dependencies.
 
 ## Who decides what
 
@@ -110,6 +161,8 @@ instead of a production deploy. Skills are loaded only when a task needs them.
    - something changed;
    - typecheck, lint, tests and build from `config.json` pass in the worktree (the build runs last, only if the
      faster checks passed);
+   - the agent instructions still match the repository (the handover gate: no script, path or skill they name has
+     gone);
    - no escalation path was touched;
    - the commit carries your identity;
    - `git merge-tree` shows it merges cleanly onto the current branch.

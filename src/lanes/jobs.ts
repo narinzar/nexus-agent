@@ -8,7 +8,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { Repo } from "../repo-intel/repo.ts";
 import { locate } from "../repo-intel/locate.ts";
-import { readConfig, DEFAULT_ESCALATE, type NexusConfig } from "./init.ts";
+import { readConfig, validate, DEFAULT_ESCALATE, type NexusConfig } from "./init.ts";
 import { loadProfile, ATTRIBUTION_RE } from "./profile.ts";
 
 const CLI = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../cli.ts");
@@ -61,7 +61,7 @@ function save(root: string, j: Job) {
   fs.writeFileSync(path.join(d, "decision.md"), lines.join("\n"));
 }
 
-function run(cmd: string, cwd: string, timeoutMs = 900_000): Promise<{ code: number; out: string }> {
+export function run(cmd: string, cwd: string, timeoutMs = 900_000): Promise<{ code: number; out: string }> {
   return new Promise((resolve) => {
     const p = spawn(cmd, { cwd, shell: true, env: process.env });
     let out = ""; const add = (b: Buffer) => { out += b.toString(); if (out.length > 200_000) out = out.slice(-100_000); };
@@ -71,11 +71,11 @@ function run(cmd: string, cwd: string, timeoutMs = 900_000): Promise<{ code: num
   });
 }
 
-function runNexus(wt: string, task: string, model: string | undefined, maxCost: string): Promise<any> {
+export function runNexus(wt: string, task: string, model: string | undefined, maxCost: string, extra: string[] = []): Promise<any> {
   return new Promise((resolve) => {
     const env = { ...process.env, ...(process.env.HTTPS_PROXY ? { NODE_USE_ENV_PROXY: "1" } : {}) };
     // unattended, so every job gets a review round
-    const args = ["--disable-warning=ExperimentalWarning", CLI, "run", "--repo", wt, "--json", "--quiet", "--approve", "never", "--review", "always", "--max-cost", maxCost, ...(model ? ["--model", model] : []), task];
+    const args = ["--disable-warning=ExperimentalWarning", CLI, "run", "--repo", wt, "--json", "--quiet", "--approve", "never", "--review", "always", "--max-cost", maxCost, ...extra, ...(model ? ["--model", model] : []), task];
     const p = spawn(process.execPath, args, { cwd: wt, env });
     let out = "", err = ""; p.stdout.on("data", (b) => (out += b)); p.stderr.on("data", (b) => (err += b));
     p.on("close", () => { try { resolve(JSON.parse(out.slice(out.indexOf("{")))); } catch { resolve({ outcome: "error", summary: (err || out).slice(-300), requests: 0, usage: {}, reviews: [] }); } });
@@ -117,7 +117,7 @@ export async function runJobs(root: string, tasks: string[], o: LanesOptions = {
   return jobs;
 }
 
-const GATE_KINDS = ["typecheck", "lint", "test", "build"];
+export const GATE_KINDS = ["typecheck", "lint", "test", "build"];
 
 /** Commit subject from the task: its first sentence, cut at a word boundary to 72 characters. */
 export function subject(task: string): string {
@@ -160,6 +160,8 @@ async function runJob(root: string, j: Job, cfg: NexusConfig | null, o: LanesOpt
     const res = await run(c.cmd, j.worktree);
     j.gates.push({ name: c.kind, ok: res.code === 0, detail: `\`${c.cmd}\` exit ${res.code}${res.code ? `: ${res.out.trim().split("\n").slice(-3).join(" ")}` : ""}` });
   }
+  // handover: the change must leave the agent instructions true (commands, paths, skills still exist)
+  if (cfg) { const errs = validate(j.worktree).filter((x) => x.level === "error"); j.gates.push({ name: "handover", ok: !errs.length, detail: errs.length ? errs.map((x) => x.msg).join("; ") : "instructions still match the repository" }); }
   const risky = j.changed.filter((f) => matchesAny(f, cfg?.escalate || DEFAULT_ESCALATE));
   j.gates.push({ name: "escalation paths", ok: !risky.length, detail: risky.length ? risky.join(", ") : "none touched" });
   if (j.changed.length) {
@@ -200,4 +202,31 @@ export function takeBacklog(file: string, n: number): string[] {
   const next = text.replace(/^(\s*[-*] )\[ \] (.+)$/gm, (m, pre, t) => { if (out.length >= n) return m; out.push(t.trim()); return `${pre}[x] ${t} (job started ${new Date().toISOString().slice(0, 10)})`; });
   fs.writeFileSync(file, next);
   return out;
+}
+
+/**
+ * Work through BACKLOG.md: take the next unchecked items, commit the ticks (so merges find a clean checkout), run them
+ * in lanes, then record each outcome on its line and commit that.
+ */
+export async function runBacklog(root: string, file: string, take: number, o: LanesOptions = {}): Promise<Job[]> {
+  const tasks = takeBacklog(file, take);
+  if (!tasks.length) return [];
+  const rel = path.relative(root, file), me = loadProfile();
+  const id = me.git.name && me.git.email ? ["-c", `user.name=${me.git.name}`, "-c", `user.email=${me.git.email}`] : [];
+  const commit = (msg: string) => { git(root, "add", "--", rel); if (git(root, "diff", "--cached", "--quiet").status !== 0) git(root, ...id, "commit", "-q", "-m", msg, "--", rel); };
+  commit(`Start ${tasks.length} backlog item(s)`);
+  const jobs = await runJobs(root, tasks, o);
+  fs.writeFileSync(file, settleBacklog(fs.readFileSync(file, "utf8"), jobs));
+  commit("Record backlog outcomes");
+  return jobs;
+}
+
+/** Rewrite the "(job started ...)" ticks with each job's outcome; items that did not land go back to unchecked. */
+export function settleBacklog(text: string, jobs: Pick<Job, "id" | "task" | "stage">[]): string {
+  return text.replace(/^(\s*[-*] )\[x\] (.+?) \(job started [\d-]+\)$/gm, (m, pre, t) => {
+    const j = jobs.find((x) => x.task === t.trim()); if (!j) return m;
+    if (j.stage === "merged") return `${pre}[x] ${t} (done: job ${j.id.split("-")[0]})`;
+    if (j.stage === "approved") return `${pre}[x] ${t} (approved, not merged: job ${j.id.split("-")[0]})`;
+    return `${pre}[ ] ${t} (${j.stage}: see job ${j.id.split("-")[0]})`;
+  });
 }

@@ -1,8 +1,8 @@
 # Nexus-Agent architecture
 
-Nexus-Agent takes a list of changes to a repository and delivers them as checked, reviewed work: prepare the
-repository, make a change, run many changes in parallel lanes. This document covers the agent at the centre of it, the
-part that makes one change (step 2); preparation and lanes are in [lanes.md](lanes.md). The agent is general-purpose. It is meant for any language and build system, works
+Nexus-Agent starts a project from a description, or takes over an existing one, and builds it change by change in
+parallel lanes, keeping the repository ready for the next agent. This document covers the agent at the centre of it,
+the part that makes one change (step 2); starting, handing over and lanes are in [lanes.md](lanes.md). The agent is general-purpose. It is meant for any language and build system, works
 with any model provider, and treats the repository as a queryable knowledge system instead of text to paste into
 prompts.
 

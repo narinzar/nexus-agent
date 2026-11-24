@@ -19,7 +19,7 @@ import { loadProfile, type PersonalProfile } from "./profile.ts";
 export const BEGIN = "<!-- nexus:begin (managed by `nexus init`; edit outside this block or in .nexus/config.json) -->";
 export const END = "<!-- nexus:end -->";
 const BUILTIN_SKILLS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../skills");
-const BASE_SKILLS = ["code-review", "git-workflow", "testing", "debugging"];
+const BASE_SKILLS = ["build-for-handover", "code-review", "git-workflow", "testing", "debugging"];
 
 export interface Command { kind: string; cmd: string; evidence: string }
 export interface NexusConfig {
@@ -81,6 +81,11 @@ function delegated(c: Command, sameKind: Command[], scripts: Record<string, stri
   });
 }
 
+function mergeCommands(saved: Command[] | undefined, found: Command[]): Command[] {
+  if (!saved) return found;
+  return [...saved, ...found.filter((f) => !saved.some((s) => s.kind === f.kind))];
+}
+
 export async function plan(root: string, me: PersonalProfile = loadProfile()): Promise<NexusConfig> {
   const repo = await new Repo(root).init(); await repo.index();
   const p: Profile = repo.profile(); const files = repo.listFiles(); repo.close();
@@ -100,7 +105,8 @@ export async function plan(root: string, me: PersonalProfile = loadProfile()): P
     version: 1,
     project: { languages: p.languages.slice(0, 6).map((l) => l.id), frameworks: p.frameworks, entryPoints: p.entryPoints.slice(0, 8), docs: p.docs.slice(0, 8), ci: p.ci },
     setup: saved?.setup ?? commands.find((c) => c.kind === "setup")?.cmd,
-    commands: saved?.commands ?? commands.filter((c) => c.kind !== "setup"),
+    // saved commands (possibly edited by the owner) win; kinds detected since then are added
+    commands: mergeCommands(saved?.commands, commands.filter((c) => c.kind !== "setup")),
     environments: envs,
     rules: saved?.rules ?? [],
     agents: saved?.agents ?? me.agents,
@@ -141,6 +147,7 @@ export function renderAgents(c: NexusConfig): string {
   for (const r of c.rules) L.push(`- ${r}`);
   L.push("- Verify every change with the cheapest command above that covers it before saying it is done. Report what was not checked.");
   L.push("- Review your own diff before finishing: every requirement met, edge cases, other code that must change too, no unrelated changes.");
+  L.push("- Leave the repository ready for the next agent: checks pass, the change has a test, README and BACKLOG.md are current (skill `build-for-handover`).");
   L.push("", "## Finding code", "");
   L.push("Query the code index before reading whole files: `nexus locate \"<task>\"`, `nexus ctx <symbol>`, `nexus show <symbol|file:a-b>`, `nexus refs <symbol>`, `nexus impact` (what a change affects and which tests cover it).");
   if (c.environments.length > 1 || c.skills.length) {

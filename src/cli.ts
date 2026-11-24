@@ -20,7 +20,13 @@ Repository intelligence (incremental index in .nexus/index.db)
   check [files...]          syntax + unresolved imports on changed files
   grep <pattern>            ripgrep with capped output
 
-Prepare a repository, then run many tasks in parallel lanes
+Start or hand over a project, then build it in parallel lanes
+  new "<what to build>" [--dir <path>] [--build [--take 5]]
+                            start from scratch: SPEC.md, BACKLOG.md, a skeleton with every check, ready for handover;
+                            --build then works through the backlog in lanes
+  handover [--fix] [--spec] [--quick]
+                            is this repository ready for the next agent? (commands, tests, README, instructions,
+                            no secrets, committed, checks pass); --fix asks the agent to repair what fails
   init [--agents agents,claude,cursor,copilot,gemini] [--env wsl,powershell,gcp,aws-lambda,modal] [--dry]
                             detect stack, commands, environments; write AGENTS.md (+ thin per-agent files), skills, .nexus/config.json
   validate                  check the instruction files still match the repository
@@ -46,8 +52,10 @@ async function main() {
   const [cmd, ...a] = argv;
   if (!cmd || cmd === "help" || cmd === "--help") return console.log(HELP);
   if (cmd === "run") { const { runCli } = await import("./agent/cli-run.ts"); return runCli(root, () => argv.slice(1), opt, flag); }
-  if (["init", "validate", "env", "profile", "lanes", "factory"].includes(cmd)) {
+  if (["new", "handover", "init", "validate", "env", "profile", "lanes", "factory"].includes(cmd)) {
     const F = await import("./lanes/cli.ts");
+    if (cmd === "new") return F.newCli(() => argv.slice(1), opt, flag);
+    if (cmd === "handover") return F.handoverCli(root, opt, flag);
     if (cmd === "init") return F.initCli(root, opt, flag);
     if (cmd === "validate") return F.validateCli(root);
     if (cmd === "env") return F.envCli(root, argv.slice(1));

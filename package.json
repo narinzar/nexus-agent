@@ -1,7 +1,7 @@
 {
   "name": "nexus-agent",
   "version": "0.1.0",
-  "description": "Hand your repository a list of changes: Nexus makes them in parallel lanes, checks and reviews every one, and keeps only what passes. Any language, any AI model.",
+  "description": "Start a project from a description or hand over an existing one: Nexus builds it change by change in parallel lanes, checks and reviews every change, and keeps the repository ready for the next agent. Any language, any AI model.",
   "keywords": [
     "coding-agent",
     "ai",
