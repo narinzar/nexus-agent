@@ -30,5 +30,5 @@ Node.js 22.18 or newer runs the TypeScript sources directly; there is no build s
 | a language | `src/repo-intel/languages.ts`, plus parser and import rules in the files above |
 | an AI provider | `src/models/adapters.ts` |
 | a skill | `skills/<name>/SKILL.md` ([Agent Skills](https://agentskills.io) format) |
-| an environment for `nexus env` | `src/factory/environments.ts` and a matching `skills/env-<id>/SKILL.md` |
+| an environment for `nexus env` | `src/lanes/environments.ts` and a matching `skills/env-<id>/SKILL.md` |
 | a benchmark task | `benchmarks/suites/*.json` (see [benchmarks/README.md](benchmarks/README.md)) |

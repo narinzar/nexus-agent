@@ -1,18 +1,18 @@
 # Nexus-Agent
 
-**Turn any repository into a software factory. Describe changes in plain English; Nexus makes them, one at a time or
-many in parallel, checks and reviews each one, and keeps only the ones that pass.**
+**Hand your repository a list of changes. Nexus makes them in parallel lanes, checks and reviews every one, and keeps
+only what passes.**
 
-It works with any programming language and any AI model, and sends the model only the code that matters, so each
-change costs less.
+Describe each change in plain English. Nexus works in any programming language with any AI model, and sends the
+model only the code a change needs, so each change costs less.
 
-## The idea in three steps
+## How it works, in three steps
 
 | Step | Command | What happens |
 |---|---|---|
 | **1. Prepare the repository** | `nexus init` | Detects the stack, commands and environments, then writes the instructions and skills every coding agent reads. Nexus, Claude Code, Codex, Cursor, Copilot and Gemini all follow the same rules. |
 | **2. Make a change** | `nexus run "<task>"` | The agent finds the few pieces of code the task needs, edits them, runs the project's checks, reviews its own diff and fixes what it finds. |
-| **3. Make many changes safely** | `nexus factory run "<task>" "<task>" ...` | Runs step 2 for each task in its own branch, in parallel when the tasks touch different code. Mechanical gates decide what is accepted, not the model. |
+| **3. Run many changes in lanes** | `nexus lanes run "<task>" "<task>" ...` | Runs step 2 for each task in its own branch. Tasks that touch different code run in parallel lanes; tasks that touch the same code share a lane and run in turn. Mechanical gates decide what is accepted, not the model. |
 
 Use step 2 alone for a single change. Use all three to hand a repository a backlog.
 
@@ -81,7 +81,7 @@ nexus env check
   - one `AGENTS.md`, the canonical instructions;
   - thin pointers to it for Claude Code, Cursor, Copilot and Gemini;
   - matching skills;
-  - `.nexus/factory.json` with everything it decided, for you to edit.
+  - `.nexus/config.json` with everything it decided, for you to edit.
 
   Your own text in those files is never touched, and running it twice changes nothing.
 - **`nexus env check`** checks each environment's tools and sign-in, and prints the exact fix for anything missing.
@@ -116,13 +116,13 @@ about a tenth of the price.
 - It asks before risky commands: deleting, network access, installs, `git push`.
 - It checkpoints every file it writes and logs every action to `.nexus/log/`.
 
-## 3. Make many changes safely
+## 3. Run many changes in lanes
 
 ```bash
-nexus factory run "add X" "fix Y" "rename Z" --parallel 3 --merge
+nexus lanes run "add X" "fix Y" "rename Z" --parallel 3 --merge
 ```
 
-Or list tasks as `- [ ]` items in `BACKLOG.md` and run `nexus factory backlog`.
+Or list tasks as `- [ ]` items in `BACKLOG.md` and run `nexus lanes backlog`.
 
 1. **Plan:** tasks that would touch the same files share a lane and run one after another; lanes run in parallel.
 2. **Isolate:** each task gets its own branch and worktree.
@@ -136,7 +136,7 @@ Or list tasks as `- [ ]` items in `BACKLOG.md` and run `nexus factory backlog`.
    `.nexus/jobs/<id>/decision.md`.
 6. **Merge:** with `--merge`, approved jobs merge locally one at a time. **Nothing is ever pushed.**
 
-Who decides what at each step: [docs/factory.md](docs/factory.md).
+Who decides what at each step: [docs/lanes.md](docs/lanes.md).
 
 ## Results
 
@@ -145,7 +145,7 @@ Who decides what at each step: [docs/factory.md](docs/factory.md).
 ![Large suite cost vs pass rate](benchmarks/charts/large-cost-vs-quality.svg)
 
 The review step costs about 20 to 25% more. It made no difference to Claude's pass rate (18/21 either way) and added
-one pass for DeepSeek (14/21). The factory always uses it, because there it also guards an automatic merge.
+one pass for DeepSeek (14/21). Lanes always use it, because there it also guards an automatic merge.
 
 To reproduce:
 
@@ -164,7 +164,7 @@ More options: [benchmarks/README.md](benchmarks/README.md).
 |---|---|
 | `bin/nexus.mjs` | the `nexus` command |
 | `src/cli.ts` | command-line entry: parses commands and dispatches |
-| `src/factory/` | step 1 and step 3: `init`, `validate`, environment checks, personal profile, parallel jobs with gates |
+| `src/lanes/` | step 1 and step 3: `init`, `validate`, environment checks, personal profile, parallel jobs with gates |
 | `src/repo-intel/` | step 2, the map: language detection, parsers (built-in and tree-sitter), import resolution, SQLite index, queries (`locate`, `ctx`, `map`, ...) |
 | `src/context/` | step 2, what to send: builds each request; tracks what was already sent and what went stale |
 | `src/agent/` | step 2, the loop: classify the task, send code, apply edits, verify, review, repeat |
@@ -173,7 +173,7 @@ More options: [benchmarks/README.md](benchmarks/README.md).
 | `src/skills/`, `skills/` | how-to guides in the [Agent Skills](https://agentskills.io) format, loaded only when a task needs them: debugging, testing, refactoring, code review, git, performance, and one per environment |
 | `src/memory/` | facts remembered between tasks, flagged stale when their files change |
 | `src/benchmark/`, `benchmarks/` | the benchmark runner, task suites, fixtures, hidden tests, raw results, report and charts ([guide](benchmarks/README.md)) |
-| `docs/` | [architecture](docs/architecture.md), [software factory](docs/factory.md), [research notes](docs/research.md) on what was reused and why |
+| `docs/` | [architecture](docs/architecture.md), [preparing a repository and lanes](docs/lanes.md), [research notes](docs/research.md) on what was reused and why |
 | `tests/` | unit and end-to-end tests (`npm run check`) |
 
 ## Contributing
@@ -184,7 +184,7 @@ every efficiency or quality claim needs a benchmark result.
 ## Credits
 
 Built on tree-sitter, Node.js and the Agent Skills format. The agent adapts ideas from Aider, SWE-agent, SWE-bench,
-Codex CLI, Cline, OpenHands and Pi; the factory adapts ideas from agentskill, harness2, ponytail, archify, graphify
+Codex CLI, Cline, OpenHands and Pi; preparation and lanes adapt ideas from agentskill, harness2, ponytail, archify, graphify
 and the zazencodes software factory. The full list with licences is in [CREDITS.md](CREDITS.md).
 
 ## License

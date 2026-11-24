@@ -1,4 +1,4 @@
-// CLI for the factory: init, validate, env, profile, factory run|backlog|status|merge|clean.
+// CLI for preparing a repository and running lanes: init, validate, env, profile, lanes run|backlog|status|merge|clean.
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -22,7 +22,7 @@ export async function initCli(root: string, opt: Opt, flag: (n: string) => boole
   skills:       ${c.skills.map((s) => s.name).join(", ")}
 files:
 ${r.written.map((w) => `  ${w.action.padEnd(17)} ${w.file}`).join("\n") || "  (nothing changed)"}${r.notes.length ? `\nnotes:\n${r.notes.map((n) => `  - ${n}`).join("\n")}` : ""}
-next: nexus env check   |   nexus validate   |   nexus factory run "<task>" "<task>" --parallel 3`);
+next: nexus env check   |   nexus validate   |   nexus lanes run "<task>" "<task>" --parallel 3`);
 }
 
 export function validateCli(root: string) {
@@ -47,8 +47,8 @@ export function profileCli(rest: () => string[], flag: (n: string) => boolean) {
   console.log(`${profilePath()}\n${JSON.stringify(p, null, 2)}\n\nnexus profile set git.name <name> | set git.email <email> | set agents agents,claude,cursor | add rules "<rule>" | apply`);
 }
 
-export async function factoryCli(root: string, rest: () => string[], opt: Opt, flag: (n: string) => boolean) {
-  const o = { parallel: +(opt("--parallel", "3")!), model: opt("--model"), maxCost: opt("--max-cost", "1"), merge: flag("--merge"), log: (s: string) => console.error(`[factory] ${s}`) };
+export async function lanesCli(root: string, rest: () => string[], opt: Opt, flag: (n: string) => boolean) {
+  const o = { parallel: +(opt("--parallel", "3")!), model: opt("--model"), maxCost: opt("--max-cost", "1"), merge: flag("--merge"), log: (s: string) => console.error(`[lanes] ${s}`) };
   const file = path.resolve(root, opt("--file", "BACKLOG.md")!), take = +(opt("--take", "5")!);
   const a = rest(), sub = a[0];
   const show = (jobs = listJobs(root)) => {
@@ -58,7 +58,7 @@ export async function factoryCli(root: string, rest: () => string[], opt: Opt, f
   };
   if (sub === "run") {
     const tasks = a.slice(1).filter(Boolean);
-    if (!tasks.length) return console.log('usage: nexus factory run "<task>" ["<task>" ...] [--parallel 3] [--model m] [--max-cost 1] [--merge]');
+    if (!tasks.length) return console.log('usage: nexus lanes run "<task>" ["<task>" ...] [--parallel 3] [--model m] [--max-cost 1] [--merge]');
     show(await runJobs(root, tasks, o)); return;
   }
   if (sub === "backlog") {

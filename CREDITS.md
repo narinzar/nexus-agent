@@ -30,9 +30,9 @@ benchmark runs on. Licences were checked against each project's own repository: 
 | [SCIP](https://github.com/sourcegraph/scip) (Apache-2.0) | Precision levels for code facts (heuristic / syntactic / semantic); planned import |
 | [codegraph](https://github.com/colbymchenry/codegraph) (MIT) | Confirmation that WebAssembly tree-sitter + SQLite is a practical stack |
 
-## Ideas adapted for the software factory (no code copied)
+## Ideas adapted for preparation and lanes (no code copied)
 
-Read in full before designing `src/factory/`. Each was reimplemented in our own words and code.
+Read in full before designing `src/lanes/`. Each was reimplemented in our own words and code.
 
 | Project | Licence | Idea |
 |---|---|---|

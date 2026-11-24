@@ -4,13 +4,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { init, validate, upsertBlock, BEGIN, END } from "../src/factory/init.ts";
-import { lanes, matchesAny, takeBacklog, subject, type Job } from "../src/factory/jobs.ts";
-import { ATTRIBUTION_RE, personalRules, DEFAULT_PROFILE, applyProfile } from "../src/factory/profile.ts";
-import { detectEnvironments } from "../src/factory/environments.ts";
+import { init, validate, upsertBlock, BEGIN, END } from "../src/lanes/init.ts";
+import { lanes, matchesAny, takeBacklog, subject, type Job } from "../src/lanes/jobs.ts";
+import { ATTRIBUTION_RE, personalRules, DEFAULT_PROFILE, applyProfile } from "../src/lanes/profile.ts";
+import { detectEnvironments } from "../src/lanes/environments.ts";
 
 function repoWith(files: Record<string, string>): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-factory-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-lanes-"));
   for (const [f, c] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), c); }
   execFileSync("git", ["init", "-q"], { cwd: dir });
   return dir;
@@ -46,7 +46,7 @@ test("init: detects stack, commands and environments; idempotent; personal rules
   assert.match(fs.readFileSync(path.join(dir, "CLAUDE.md"), "utf8"), /@AGENTS\.md/);
   assert.ok(fs.existsSync(path.join(dir, ".claude/skills/env-aws-lambda/SKILL.md")));
   assert.ok(fs.existsSync(path.join(dir, ".agents/skills/code-review/SKILL.md")));
-  assert.match(fs.readFileSync(path.join(dir, ".gitignore"), "utf8"), /!\.nexus\/factory\.json/);
+  assert.match(fs.readFileSync(path.join(dir, ".gitignore"), "utf8"), /!\.nexus\/config\.json/);
   assert.equal(execFileSync("git", ["config", "user.email"], { cwd: dir, encoding: "utf8" }).trim(), "someone@example.com");
   const again = await init(dir);
   assert.deepEqual(again.written, [], "second run changes nothing");
@@ -137,4 +137,20 @@ test("commit subject: first sentence, cut at a word boundary", () => {
   assert.equal(subject("Add frontend/src/app/robots.ts (Next.js metadata route): when SITE_ENV is prod allow all"), "Add frontend/src/app/robots.ts (Next.js metadata route)");
   const s = subject("Add a skip link for keyboard users as the first focusable element in the locale layout, visually hidden until focused");
   assert.ok(s.length <= 72 && s.endsWith("…") && !/\s…$/.test(s), s);
+});
+
+test("an older setup's .nexus/factory.json is read and moved to config.json", async () => {
+  const dir = repoWith({ "a.js": "export const a = 1;\n" });
+  profile(dir, {});
+  await init(dir); // a current setup, then turned back into an older one
+  const old = { ...JSON.parse(fs.readFileSync(path.join(dir, ".nexus/config.json"), "utf8")), rules: ["Keep this rule."], escalate: ["x/**"] };
+  fs.rmSync(path.join(dir, ".nexus/config.json")); fs.writeFileSync(path.join(dir, ".nexus/factory.json"), JSON.stringify(old));
+  fs.writeFileSync(path.join(dir, ".gitignore"), "# Nexus local state (index, logs, checkpoints, jobs); the factory config is shared\n.nexus/*\n!.nexus/factory.json\n");
+  await init(dir);
+  assert.ok(!fs.existsSync(path.join(dir, ".nexus/factory.json")));
+  const c = JSON.parse(fs.readFileSync(path.join(dir, ".nexus/config.json"), "utf8"));
+  assert.deepEqual(c.rules, ["Keep this rule."]); assert.deepEqual(c.escalate, ["x/**"]);
+  const gi = fs.readFileSync(path.join(dir, ".gitignore"), "utf8");
+  assert.match(gi, /^!\.nexus\/config\.json$/m); assert.doesNotMatch(gi, /factory/);
+  assert.deepEqual((await init(dir)).written, [], "second run changes nothing");
 });

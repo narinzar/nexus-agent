@@ -1,8 +1,8 @@
-# Software factory
+# Preparing a repository and running lanes
 
-Nexus turns any repository into a software factory in three steps: **prepare** the repository (`nexus init`),
-**make a change** (`nexus run`, the agent described in [architecture.md](architecture.md)), and **make many changes
-safely** (`nexus factory run`). This guide covers steps 1 and 3: one command makes a repository ready for Nexus or any
+Nexus takes a repository from a list of changes to merged, checked work in three steps: **prepare** the repository (`nexus init`),
+**make a change** (`nexus run`, the agent described in [architecture.md](architecture.md)), and **run many changes in
+parallel lanes** (`nexus lanes run`). This guide covers steps 1 and 3: one command makes a repository ready for Nexus or any
 other coding agent, then several tasks run at once, each in its own branch and worktree, reviewed, checked, and
 merged only when every gate passes.
 
@@ -25,21 +25,21 @@ nexus init
 nexus env check
 ```
 ```bash
-nexus factory run "add X" "fix Y" "rename Z" --parallel 3 --merge
+nexus lanes run "add X" "fix Y" "rename Z" --parallel 3 --merge
 ```
 
 ## Who decides what
 
 | Decision | Decided by | Where it is recorded |
 |---|---|---|
-| Stack, languages, entry points | Detection from the files (no model) | `.nexus/factory.json` → AGENTS.md |
+| Stack, languages, entry points | Detection from the files (no model) | `.nexus/config.json` → AGENTS.md |
 | Setup, build, typecheck, lint, test commands | Detection from manifests and lockfiles; each command cites the file it came from | same |
 | Environments (local, Docker, WSL, PowerShell, Google Cloud, AWS Lambda, Modal) | Evidence in the repository or on the machine, plus any you force in your profile or with `--env` | same, each with its evidence |
 | Which skills to install | Base set (code-review, git-workflow, testing, debugging) plus one per detected environment | same, with a hash of each |
 | Which agents get instruction files | Your profile (`agents`), or `--agents` | same |
 | Git identity, no AI attribution, push and merge rules | **Your profile**, applied outside the repository: user-level agent files, this clone's git config, a local commit-msg hook | `~/.nexus/profile.json` |
-| Project rules everyone must follow | You, in `.nexus/factory.json` → `rules` | committed |
-| Which paths always need you (CI, deploy, auth, migrations, dependencies) | `.nexus/factory.json` → `escalate` (sensible defaults) | committed |
+| Project rules everyone must follow | You, in `.nexus/config.json` → `rules` | committed |
+| Which paths always need you (CI, deploy, auth, migrations, dependencies) | `.nexus/config.json` → `escalate` (sensible defaults) | committed |
 | The code change | The model | the job's branch |
 | Whether a job is accepted | **Deterministic gates**, not a model | `.nexus/jobs/<id>/decision.md` |
 
@@ -54,9 +54,9 @@ Rule of thumb: **facts are detected, policy is yours, code is the model's, accep
   each points to `AGENTS.md`, so there is nothing to keep in sync.
 - **Skills** in `.agents/skills/` (and `.claude/skills/` for Claude Code): copied, not linked, so the repository works
   without Nexus installed. If you edit a skill in the repository, later `init` runs keep your version.
-- **`.nexus/factory.json`**: everything decided above, with evidence. Edit it, re-run `nexus init`, and the files
+- **`.nexus/config.json`**: everything decided above, with evidence. Edit it, re-run `nexus init`, and the files
   are re-rendered from it.
-- **`.gitignore`** entries for Nexus's local state (index, logs, checkpoints, jobs), keeping `factory.json` shared.
+- **`.gitignore`** entries for Nexus's local state (index, logs, checkpoints, jobs), keeping `config.json` shared.
 - **Local only, never committed:** `git config user.name/email` for this clone, and a `commit-msg` hook that rejects
   AI or tool attribution lines (`Co-Authored-By: <an AI>`, "Generated with ...", session links).
 
@@ -93,10 +93,10 @@ nexus profile set environments wsl,powershell
 Each has a skill with the working practices: where code should live, quoting, secrets, and how to run a preview
 instead of a production deploy. Skills are loaded only when a task needs them.
 
-## Parallel jobs
+## Lanes: parallel jobs
 
-`nexus factory run "<task>" "<task>" ... [--parallel 3] [--merge] [--model <m>] [--max-cost 1]`, or
-`nexus factory backlog` to take the unchecked `- [ ]` items from `BACKLOG.md`.
+`nexus lanes run "<task>" "<task>" ... [--parallel 3] [--merge] [--model <m>] [--max-cost 1]`, or
+`nexus lanes backlog` to take the unchecked `- [ ]` items from `BACKLOG.md`.
 
 1. **Plan lanes.** Each task's likely files come from the code index, or from the files the task names, plus their
    tests. Tasks that would touch the same files share a lane and run one after another; lanes run in parallel.
@@ -108,17 +108,18 @@ instead of a production deploy. Skills are loaded only when a task needs them.
 4. **Gates**, all mechanical:
    - the agent finished;
    - something changed;
-   - typecheck, lint and tests from `factory.json` pass in the worktree;
+   - typecheck, lint, tests and build from `config.json` pass in the worktree (the build runs last, only if the
+     faster checks passed);
    - no escalation path was touched;
    - the commit carries your identity;
    - `git merge-tree` shows it merges cleanly onto the current branch.
 5. **Decide.** All gates pass: **approved**. Any check fails or an escalation path is touched: **needs-human**, with
    the reasons. The agent did not finish or changed nothing: **failed**. Evidence for each gate is in
    `.nexus/jobs/<id>/decision.md`.
-6. **Merge** (with `--merge`, or later `nexus factory merge <id>`): approved jobs are merged locally with
+6. **Merge** (with `--merge`, or later `nexus lanes merge <id>`): approved jobs are merged locally with
    `--no-ff`, one at a time. The next job in a lane starts from the merged result. **Nothing is ever pushed.**
 
-`nexus factory` lists jobs; `nexus factory clean` removes the worktrees and branches of merged and failed jobs.
+`nexus lanes` lists jobs; `nexus lanes clean` removes the worktrees and branches of merged and failed jobs.
 
 ## Where the ideas came from
 
@@ -132,3 +133,6 @@ See [CREDITS.md](../CREDITS.md). In short:
   the zazencodes software factory.
 
 None of their code is used.
+
+Older setups kept the config in `.nexus/factory.json`; it is still read, and the next `nexus init` moves it to
+`.nexus/config.json`. `nexus factory` still works as an alias for `nexus lanes`.

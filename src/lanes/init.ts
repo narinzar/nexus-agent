@@ -3,9 +3,9 @@
 //   - facts (stack, commands, environments) come from deterministic detection with evidence: no model involved;
 //   - personal policy (git identity, attribution, push and merge rules) comes from the owner's profile and is applied
 //     outside the repository (user-level agent files, local git config, a local commit-msg hook), never committed;
-//   - project rules are the owner's to add in .nexus/factory.json ("rules");
+//   - project rules are the owner's to add in .nexus/config.json ("rules");
 //   - the owner's own text is never rewritten: Nexus only manages the block between its markers.
-// Everything decided is recorded in .nexus/factory.json, which the owner may edit; re-running init re-renders from it.
+// Everything decided is recorded in .nexus/config.json, which the owner may edit; re-running init re-renders from it.
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -16,13 +16,13 @@ import { commandsFor, type Profile } from "../repo-intel/detect.ts";
 import { detectEnvironments } from "./environments.ts";
 import { loadProfile, type PersonalProfile } from "./profile.ts";
 
-export const BEGIN = "<!-- nexus:begin (managed by `nexus init`; edit outside this block or in .nexus/factory.json) -->";
+export const BEGIN = "<!-- nexus:begin (managed by `nexus init`; edit outside this block or in .nexus/config.json) -->";
 export const END = "<!-- nexus:end -->";
 const BUILTIN_SKILLS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../skills");
 const BASE_SKILLS = ["code-review", "git-workflow", "testing", "debugging"];
 
 export interface Command { kind: string; cmd: string; evidence: string }
-export interface FactoryConfig {
+export interface NexusConfig {
   version: 1;
   project: { languages: string[]; frameworks: string[]; entryPoints: string[]; docs: string[]; ci: string[] };
   setup?: string;
@@ -32,7 +32,7 @@ export interface FactoryConfig {
   skills: { name: string; source: string; hash: string }[];
   /** project rules (shared with everyone working on the repository); personal rules never go here */
   rules: string[];
-  /** paths whose change always needs the owner: the factory never auto-approves a job touching them */
+  /** paths whose change always needs the owner: lanes never auto-approve a job touching them */
   escalate: string[];
   models: { build?: string };
 }
@@ -81,7 +81,7 @@ function delegated(c: Command, sameKind: Command[], scripts: Record<string, stri
   });
 }
 
-export async function plan(root: string, me: PersonalProfile = loadProfile()): Promise<FactoryConfig> {
+export async function plan(root: string, me: PersonalProfile = loadProfile()): Promise<NexusConfig> {
   const repo = await new Repo(root).init(); await repo.index();
   const p: Profile = repo.profile(); const files = repo.listFiles(); repo.close();
   const saved = readConfig(root);
@@ -110,8 +110,13 @@ export async function plan(root: string, me: PersonalProfile = loadProfile()): P
   };
 }
 
-export const configPath = (root: string) => path.join(root, ".nexus", "factory.json");
-export function readConfig(root: string): FactoryConfig | null { try { return JSON.parse(fs.readFileSync(configPath(root), "utf8")); } catch { return null; } }
+export const configPath = (root: string) => path.join(root, ".nexus", "config.json");
+/** Older setups kept the config in .nexus/factory.json; it is read as a fallback and replaced on the next init. */
+const legacyConfigPath = (root: string) => path.join(root, ".nexus", "factory.json");
+export function readConfig(root: string): NexusConfig | null {
+  for (const f of [configPath(root), legacyConfigPath(root)]) { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { /* next */ } }
+  return null;
+}
 
 function hashDir(dir: string): string {
   const h = crypto.createHash("sha256");
@@ -121,7 +126,7 @@ function hashDir(dir: string): string {
 }
 
 /** The managed block of AGENTS.md: short (target under 1,000 tokens), facts with their evidence, rules, pointers. */
-export function renderAgents(c: FactoryConfig): string {
+export function renderAgents(c: NexusConfig): string {
   const L: string[] = [BEGIN, "## Project", ""];
   const pr = c.project;
   L.push(`- Languages: ${pr.languages.join(", ") || "-"}${pr.frameworks.length ? `; frameworks: ${pr.frameworks.join(", ")}` : ""}.`);
@@ -131,7 +136,7 @@ export function renderAgents(c: FactoryConfig): string {
   L.push("", "## Commands", "");
   if (c.setup) L.push(`- setup: \`${c.setup}\``);
   for (const x of c.commands) L.push(`- ${x.kind}: \`${x.cmd}\` (from \`${x.evidence}\`)`);
-  if (!c.setup && !c.commands.length) L.push("- None detected. Add them to `.nexus/factory.json` and re-run `nexus init`.");
+  if (!c.setup && !c.commands.length) L.push("- None detected. Add them to `.nexus/config.json` and re-run `nexus init`.");
   L.push("", "## Working rules", "");
   for (const r of c.rules) L.push(`- ${r}`);
   L.push("- Verify every change with the cheapest command above that covers it before saying it is done. Report what was not checked.");
@@ -166,7 +171,7 @@ export function upsertBlock(existing: string | null, block: string, title?: stri
   return existing.replace(/\s*$/, "\n\n") + block + "\n";
 }
 
-export interface InitResult { config: FactoryConfig; written: { file: string; action: string }[]; notes: string[] }
+export interface InitResult { config: NexusConfig; written: { file: string; action: string }[]; notes: string[] }
 
 export async function init(root: string, opts: { dry?: boolean; agents?: string[]; env?: string[] } = {}): Promise<InitResult> {
   const me = loadProfile();
@@ -188,7 +193,7 @@ export async function init(root: string, opts: { dry?: boolean; agents?: string[
     if (!fs.existsSync(path.join(root, t.file))) put(t.file, t.text + "\n"); // new file: with any front matter it needs
     else block(t.file, t.text.slice(t.text.indexOf(BEGIN)));
   }
-  // skills: copied (not linked) so the repository works without Nexus installed; provenance + hash in factory.json
+  // skills: copied (not linked) so the repository works without Nexus installed; provenance + hash in config.json
   const skillDirs = [".agents/skills", ...(config.agents.includes("claude") ? [".claude/skills"] : [])];
   const prev = readConfig(root);
   for (const s of config.skills) for (const d of skillDirs) {
@@ -196,17 +201,19 @@ export async function init(root: string, opts: { dry?: boolean; agents?: string[
     if (fs.existsSync(dest) && hashDir(dest) !== was && hashDir(dest) !== s.hash) { notes.push(`${d}/${s.name} was edited here: kept (delete it to get the current version)`); continue; }
     copyDir(path.join(BUILTIN_SKILLS, s.name), path.join(d, s.name), root, put);
   }
-  put(".nexus/factory.json", JSON.stringify(config, null, 2) + "\n");
+  put(".nexus/config.json", JSON.stringify(config, null, 2) + "\n");
+  if (fs.existsSync(legacyConfigPath(root))) { written.push({ file: ".nexus/factory.json", action: "remove (moved to config.json)" }); if (!opts.dry) fs.rmSync(legacyConfigPath(root)); }
   // ignore Nexus's local state, keep its config
   const gi = path.join(root, ".gitignore"), giText = fs.existsSync(gi) ? fs.readFileSync(gi, "utf8") : "";
-  if (!/^\.nexus\/\*$/m.test(giText)) put(".gitignore", giText.replace(/\s*$/, giText ? "\n" : "") + "\n# Nexus local state (index, logs, checkpoints, jobs); the factory config is shared\n.nexus/*\n!.nexus/factory.json\n");
+  if (!/^\.nexus\/\*$/m.test(giText)) put(".gitignore", giText.replace(/\s*$/, giText ? "\n" : "") + "\n# Nexus local state (index, logs, checkpoints, jobs); its config is shared\n.nexus/*\n!.nexus/config.json\n");
+  else if (!/^!\.nexus\/config\.json$/m.test(giText)) put(".gitignore", giText.replace(/^!\.nexus\/factory\.json$/m, "!.nexus/config.json").replace(/the factory config is shared/, "its config is shared") + (/^!\.nexus\/factory\.json$/m.test(giText) ? "" : "!.nexus/config.json\n"));
   // git: identity and an attribution guard, local to this clone
   if (fs.existsSync(path.join(root, ".git"))) {
     if (me.git.name && me.git.email && !opts.dry) { spawnSync("git", ["config", "user.name", me.git.name], { cwd: root }); spawnSync("git", ["config", "user.email", me.git.email], { cwd: root }); notes.push(`git identity for this clone: ${me.git.name} <${me.git.email}>`); }
     if (me.git.forbidAttribution) {
       const hooksDir = (spawnSync("git", ["rev-parse", "--git-path", "hooks"], { cwd: root, encoding: "utf8" }).stdout || ".git/hooks").trim();
       const hook = path.resolve(root, hooksDir, "commit-msg");
-      if (fs.existsSync(hook) && !fs.readFileSync(hook, "utf8").includes("nexus attribution guard")) notes.push(`existing ${path.relative(root, hook)} left alone; add the attribution check by hand (see docs/factory.md)`);
+      if (fs.existsSync(hook) && !fs.readFileSync(hook, "utf8").includes("nexus attribution guard")) notes.push(`existing ${path.relative(root, hook)} left alone; add the attribution check by hand (see docs/lanes.md)`);
       else if (!fs.existsSync(hook) || fs.readFileSync(hook, "utf8") !== COMMIT_MSG_HOOK) { written.push({ file: path.relative(root, hook), action: "attribution guard" }); if (!opts.dry) { fs.mkdirSync(path.dirname(hook), { recursive: true }); fs.writeFileSync(hook, COMMIT_MSG_HOOK, { mode: 0o755 }); } }
     }
   }
@@ -234,7 +241,7 @@ fi
 export function validate(root: string): { level: "error" | "warn" | "ok"; msg: string }[] {
   const out: { level: "error" | "warn" | "ok"; msg: string }[] = [];
   const c = readConfig(root);
-  if (!c) return [{ level: "error", msg: "no .nexus/factory.json: run `nexus init`" }];
+  if (!c) return [{ level: "error", msg: "no .nexus/config.json: run `nexus init`" }];
   const agents = path.join(root, "AGENTS.md");
   if (!fs.existsSync(agents)) out.push({ level: "error", msg: "AGENTS.md missing" });
   else {
@@ -243,7 +250,7 @@ export function validate(root: string): { level: "error" | "warn" | "ok"; msg: s
     else {
       const b = t.slice(i, j), tokens = Math.round(b.length / 4);
       out.push({ level: tokens > 1500 ? "error" : tokens > 1000 ? "warn" : "ok", msg: `AGENTS.md managed block ~${tokens} tokens (target < 1000, ceiling 1500)` });
-      if (b !== renderAgents(c).slice(0, b.length)) out.push({ level: "warn", msg: "AGENTS.md block differs from .nexus/factory.json: re-run `nexus init`" });
+      if (b !== renderAgents(c).slice(0, b.length)) out.push({ level: "warn", msg: "AGENTS.md block differs from .nexus/config.json: re-run `nexus init`" });
       for (const m of b.matchAll(/`([\w./-]+\.[\w]+)`/g)) if (!/^\w+:/.test(m[1]) && /\//.test(m[1]) && !fs.existsSync(path.join(root, m[1]))) out.push({ level: "error", msg: `AGENTS.md names a missing path: ${m[1]}` });
     }
   }

@@ -1,4 +1,4 @@
-// Personal profile: the owner's own working rules, applied to every repository the factory sets up.
+// Personal profile: the owner's own working rules, applied to every repository Nexus prepares.
 // Lives outside any repository (~/.nexus/profile.json) so personal rules never have to be committed to shared projects.
 import fs from "node:fs";
 import os from "node:os";

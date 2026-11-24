@@ -1,4 +1,4 @@
-// `nexus factory`: run several tasks in parallel, each in its own git worktree and branch, then decide each one with
+// `nexus lanes`: run several tasks in parallel, each in its own git worktree and branch, then decide each one with
 // deterministic gates. The model only writes code (with its own review round); approval is not a model's opinion:
 //   build (nexus run, with a review round on every job) -> gates: changed? checks pass? escalation paths? merges cleanly? -> decision
 // Tasks predicted to touch the same files share a lane and run one after another; lanes run in parallel.
@@ -8,7 +8,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { Repo } from "../repo-intel/repo.ts";
 import { locate } from "../repo-intel/locate.ts";
-import { readConfig, DEFAULT_ESCALATE, type FactoryConfig } from "./init.ts";
+import { readConfig, DEFAULT_ESCALATE, type NexusConfig } from "./init.ts";
 import { loadProfile, ATTRIBUTION_RE } from "./profile.ts";
 
 const CLI = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../cli.ts");
@@ -82,12 +82,12 @@ function runNexus(wt: string, task: string, model: string | undefined, maxCost: 
   });
 }
 
-export interface FactoryOptions { parallel?: number; model?: string; maxCost?: string; merge?: boolean; log?: (s: string) => void }
+export interface LanesOptions { parallel?: number; model?: string; maxCost?: string; merge?: boolean; log?: (s: string) => void }
 
-export async function runJobs(root: string, tasks: string[], o: FactoryOptions = {}): Promise<Job[]> {
+export async function runJobs(root: string, tasks: string[], o: LanesOptions = {}): Promise<Job[]> {
   const log = o.log || (() => {});
-  const cfg: FactoryConfig | null = readConfig(root);
-  if (git(root, "rev-parse", "--is-inside-work-tree").stdout.trim() !== "true") throw new Error("not a git repository: the factory runs each job on its own branch");
+  const cfg: NexusConfig | null = readConfig(root);
+  if (git(root, "rev-parse", "--is-inside-work-tree").stdout.trim() !== "true") throw new Error("not a git repository: lanes run each job on its own branch");
   const repo = await new Repo(root).init(); await repo.index();
   const jobs: Job[] = tasks.map((task) => {
     const id = claim(root, task), base = git(root, "rev-parse", "HEAD").stdout.trim();
@@ -135,7 +135,7 @@ function shareDeps(from: string, to: string) {
   fs.symlinkSync(from, to, "junction");
 }
 
-async function runJob(root: string, j: Job, cfg: FactoryConfig | null, o: FactoryOptions, log: (s: string) => void) {
+async function runJob(root: string, j: Job, cfg: NexusConfig | null, o: LanesOptions, log: (s: string) => void) {
   j.started = new Date().toISOString(); j.stage = "building"; save(root, j);
   fs.mkdirSync(path.dirname(j.worktree), { recursive: true });
   const add = git(root, "worktree", "add", "-q", "-b", j.branch, j.worktree, j.base);

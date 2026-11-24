@@ -77,16 +77,16 @@ Nexus normalises them to `{inputUncached, cacheRead, cacheWrite, output, reasoni
 Nexus therefore supports both native tool calls and a plain-text action protocol (mini-swe-agent style) for models
 that call tools poorly.
 
-## Software factory sources (read 2026-11-22)
+## Sources for preparation and lanes (read 2026-11-22)
 
-Six projects were read in full before designing `src/factory/` (see [factory.md](factory.md)): airscripts/agentskill,
+Six projects were read in full before designing `src/lanes/` (see [lanes.md](lanes.md)): airscripts/agentskill,
 google-research/harness2, dietrichgebert/ponytail, tt-a1i/archify, Graphify-Labs/graphify and the zazencodes
 software factory. Licences and what was taken from each are in [CREDITS.md](../CREDITS.md).
 
 Not adopted, and why:
 - A JSON graph file committed to the repository with a git merge driver (graphify): the SQLite index under `.nexus/`
   is local and rebuilt incrementally.
-- An LLM orchestrator that decides stages and approvals (software factory): the stages are code; approval comes from
+- An LLM orchestrator that decides stages and approvals (zazencodes): the stages are code; approval comes from
   mechanical gates.
 - Many hand-maintained per-agent copies of the rules (ponytail): one AGENTS.md plus generated pointers.
 - Parallel candidate generation and model-based selection (harness2): too costly for routine work; one candidate per

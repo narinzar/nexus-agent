@@ -1,7 +1,7 @@
 {
   "name": "nexus-agent",
   "version": "0.1.0",
-  "description": "Turn any repository into a software factory: describe changes in plain English, and Nexus makes them one at a time or in parallel, checks and reviews each, and keeps only those that pass. Any language, any AI model.",
+  "description": "Hand your repository a list of changes: Nexus makes them in parallel lanes, checks and reviews every one, and keeps only what passes. Any language, any AI model.",
   "keywords": [
     "coding-agent",
     "ai",
@@ -10,7 +10,7 @@
     "tree-sitter",
     "agents-md",
     "agent-skills",
-    "software-factory",
+    "parallel-agents",
     "developer-tools"
   ],
   "homepage": "https://github.com/narinzar/nexus-agent#readme",
