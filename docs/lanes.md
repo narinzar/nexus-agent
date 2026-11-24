@@ -106,7 +106,9 @@ Rule of thumb: **facts are detected, policy is yours, code is the model's, accep
 - **Skills** in `.agents/skills/` (and `.claude/skills/` for Claude Code): copied, not linked, so the repository works
   without Nexus installed. If you edit a skill in the repository, later `init` runs keep your version.
 - **`.nexus/config.json`**: everything decided above, with evidence. Edit it, re-run `nexus init`, and the files
-  are re-rendered from it.
+  are re-rendered from it. Commands are re-detected on every run. A Makefile or justfile target wins over a guessed
+  default, and Python tools run through `uv run`, `poetry run` or `pipenv run` when that lockfile exists. To pin a
+  command of your own, set its `"evidence"` to `"owner"`: it is then kept and replaces the detected ones of its kind.
 - **`.gitignore`** entries for Nexus's local state (index, logs, checkpoints, jobs), keeping `config.json` shared.
 - **Local only, never committed:** `git config user.name/email` for this clone, and a `commit-msg` hook that rejects
   AI or tool attribution lines (`Co-Authored-By: <an AI>`, "Generated with ...", session links).

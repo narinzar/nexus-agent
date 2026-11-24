@@ -75,3 +75,19 @@ test("nexus new: spec, backlog and skeleton, prepared for agents, committed, rea
   assert.equal(execFileSync("git", ["status", "--porcelain"], { cwd: dir, encoding: "utf8" }).trim(), "");
   await assert.rejects(createProject(dir, "again", { model: `mock:${replies}` }), /not empty/);
 });
+
+test("commands: Makefile targets win over guessed defaults; Python runs in its uv environment; owner pins are kept", async () => {
+  useProfile();
+  const dir = tmp("nexus-mk-"); execFileSync("git", ["init", "-q"], { cwd: dir });
+  fs.writeFileSync(path.join(dir, "pyproject.toml"), "[project]\nname = \"x\"\n[tool.mypy]\n[tool.ruff]\n");
+  fs.writeFileSync(path.join(dir, "uv.lock"), "");
+  fs.writeFileSync(path.join(dir, "x.py"), "a = 1\n");
+  fs.writeFileSync(path.join(dir, "Makefile"), "setup:\n\tuv sync\ntest:\n\tuv run pytest\ntypecheck:\n\tuv run mypy\n");
+  let r = await init(dir, { dry: true });
+  assert.deepEqual(r.config.commands.map((c) => `${c.kind}: ${c.cmd}`).sort(), ["lint: uv run ruff check .", "test: make test", "typecheck: make typecheck"]);
+  await init(dir);
+  const cfgFile = path.join(dir, ".nexus/config.json"), cfg = JSON.parse(fs.readFileSync(cfgFile, "utf8"));
+  cfg.commands.push({ kind: "test", cmd: "make test-fast", evidence: "owner" }); fs.writeFileSync(cfgFile, JSON.stringify(cfg));
+  r = await init(dir, { dry: true });
+  assert.deepEqual(r.config.commands.filter((c) => c.kind === "test").map((c) => c.cmd), ["make test-fast"]);
+});

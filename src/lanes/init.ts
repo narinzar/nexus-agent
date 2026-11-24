@@ -81,9 +81,11 @@ function delegated(c: Command, sameKind: Command[], scripts: Record<string, stri
   });
 }
 
+/** Commands are facts, re-detected on every run. A command the owner sets with "evidence": "owner" is policy: it is
+ * kept, and replaces the detected ones of its kind. */
 function mergeCommands(saved: Command[] | undefined, found: Command[]): Command[] {
-  if (!saved) return found;
-  return [...saved, ...found.filter((f) => !saved.some((s) => s.kind === f.kind))];
+  const owned = (saved || []).filter((c) => c.evidence === "owner");
+  return [...owned, ...found.filter((f) => !owned.some((o) => o.kind === f.kind))];
 }
 
 export async function plan(root: string, me: PersonalProfile = loadProfile()): Promise<NexusConfig> {
@@ -105,7 +107,7 @@ export async function plan(root: string, me: PersonalProfile = loadProfile()): P
     version: 1,
     project: { languages: p.languages.slice(0, 6).map((l) => l.id), frameworks: p.frameworks, entryPoints: p.entryPoints.slice(0, 8), docs: p.docs.slice(0, 8), ci: p.ci },
     setup: saved?.setup ?? commands.find((c) => c.kind === "setup")?.cmd,
-    // saved commands (possibly edited by the owner) win; kinds detected since then are added
+    // detected commands, except kinds the owner pinned
     commands: mergeCommands(saved?.commands, commands.filter((c) => c.kind !== "setup")),
     environments: envs,
     rules: saved?.rules ?? [],

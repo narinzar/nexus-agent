@@ -17,6 +17,19 @@ export interface Profile {
   ci: string[];
 }
 
+/** Python tools run inside the project's environment when a lockfile says which manager owns it. */
+const pyRunner = (root: string, d: string) => { const at = (f: string) => fs.existsSync(path.join(root, d, f)); return at("uv.lock") ? "uv run " : at("poetry.lock") ? "poetry run " : at("Pipfile.lock") ? "pipenv run " : ""; };
+
+/** Commands from a task runner's own targets (Makefile, justfile): the project's declared way to run each check. */
+const TARGETS: [keyof BuildSystem["commands"], string[]][] = [["build", ["build"]], ["test", ["test", "tests", "check"]], ["lint", ["lint"]], ["typecheck", ["typecheck", "type-check", "types", "mypy", "tsc"]], ["format", ["format", "fmt"]], ["run", ["run", "start", "dev", "serve"]]];
+function runnerTargets(text: string, prefix: string, allIsBuild: boolean): BuildSystem["commands"] {
+  const has = (t: string) => new RegExp(`^${t.replace(/-/g, "\\-")}\\s*:(?!=)`, "m").test(text);
+  const out: BuildSystem["commands"] = {};
+  for (const [kind, names] of TARGETS) { const n = names.find(has); if (n) out[kind] = prefix + n; }
+  if (!out.build && allIsBuild && has("all")) out.build = prefix.trimEnd();
+  return out;
+}
+
 type Rule = { id: string; match: RegExp; commands: (dir: string, text: string, root: string) => BuildSystem["commands"]; frameworks?: (text: string) => string[] };
 const pre = (dir: string) => (dir === "." ? "" : `cd ${dir} && `);
 const npmScripts = (dir: string, text: string, root: string): BuildSystem["commands"] => {
@@ -32,14 +45,15 @@ const npmScripts = (dir: string, text: string, root: string): BuildSystem["comma
 };
 const RULES: Rule[] = [
   { id: "npm", match: /(^|\/)package\.json$/, commands: npmScripts, frameworks: (t) => { const d = (() => { try { const j = JSON.parse(t); return { ...j.dependencies, ...j.devDependencies }; } catch { return {}; } })(); return ["next", "react", "vue", "svelte", "@angular/core", "express", "fastify", "@nestjs/core", "electron", "react-native", "expo", "vite", "jest", "vitest", "mocha", "playwright", "@playwright/test", "three"].filter((k) => d[k]).map((k) => k.replace(/^@[^/]+\//, "").replace("core", "angular")); } },
-  { id: "python", match: /(^|\/)(pyproject\.toml|setup\.py|setup\.cfg|requirements[^/]*\.txt|Pipfile)$/, commands: (d, t) => ({ test: `${pre(d)}python3 -m pytest -q`, lint: /ruff/.test(t) ? `${pre(d)}ruff check .` : undefined, typecheck: /mypy/.test(t) ? `${pre(d)}mypy .` : /pyright/.test(t) ? `${pre(d)}pyright` : undefined }), frameworks: (t) => ["django", "flask", "fastapi", "pytest", "numpy", "pandas", "torch", "tensorflow", "scikit-learn", "langchain", "pydantic", "sqlalchemy", "celery"].filter((k) => new RegExp(`\\b${k}\\b`, "i").test(t)) },
+  { id: "python", match: /(^|\/)(pyproject\.toml|setup\.py|setup\.cfg|requirements[^/]*\.txt|Pipfile)$/, commands: (d, t, root) => { const x = pre(d) + pyRunner(root, d); return { test: `${x}${x.endsWith("run ") ? "pytest -q" : "python3 -m pytest -q"}`, lint: /ruff/.test(t) ? `${x}ruff check .` : undefined, typecheck: /mypy/.test(t) ? `${x}mypy .` : /pyright/.test(t) ? `${x}pyright` : undefined }; }, frameworks: (t) => ["django", "flask", "fastapi", "pytest", "numpy", "pandas", "torch", "tensorflow", "scikit-learn", "langchain", "pydantic", "sqlalchemy", "celery"].filter((k) => new RegExp(`\\b${k}\\b`, "i").test(t)) },
   { id: "go", match: /(^|\/)go\.mod$/, commands: (d) => ({ build: `${pre(d)}go build ./...`, test: `${pre(d)}go test ./...`, lint: `${pre(d)}go vet ./...` }), frameworks: (t) => ["gin-gonic/gin", "labstack/echo", "gofiber/fiber", "spf13/cobra", "grpc"].filter((k) => t.includes(k)).map((k) => k.split("/").pop()!) },
   { id: "cargo", match: /(^|\/)Cargo\.toml$/, commands: (d) => ({ build: `${pre(d)}cargo build`, test: `${pre(d)}cargo test`, lint: `${pre(d)}cargo clippy`, typecheck: `${pre(d)}cargo check` }), frameworks: (t) => ["tokio", "axum", "actix-web", "bevy", "tauri", "serde", "clap"].filter((k) => new RegExp(`^\\s*${k}\\s*=`, "m").test(t)) },
   { id: "maven", match: /(^|\/)pom\.xml$/, commands: (d) => ({ build: `${pre(d)}mvn -q package -DskipTests`, test: `${pre(d)}mvn -q test` }), frameworks: (t) => (/spring-boot/.test(t) ? ["spring-boot"] : []) },
   { id: "gradle", match: /(^|\/)build\.gradle(\.kts)?$/, commands: (d, _t, root) => { const w = fs.existsSync(path.join(root, d, "gradlew")) ? "./gradlew" : "gradle"; return { build: `${pre(d)}${w} build -x test`, test: `${pre(d)}${w} test` }; }, frameworks: (t) => [/com\.android/.test(t) && "android", /spring/.test(t) && "spring-boot", /kotlin/.test(t) && "kotlin"].filter(Boolean) as string[] },
   { id: "dotnet", match: /\.(sln|csproj|fsproj|vbproj)$/, commands: (d) => ({ build: `${pre(d)}dotnet build`, test: `${pre(d)}dotnet test` }), frameworks: (t) => [/Microsoft\.AspNetCore|Sdk\.Web/.test(t) && "aspnetcore", /Maui/.test(t) && "maui", /Unity/.test(t) && "unity"].filter(Boolean) as string[] },
   { id: "cmake", match: /(^|\/)CMakeLists\.txt$/, commands: (d) => ({ build: `${pre(d)}cmake -S . -B build && cmake --build build`, test: `${pre(d)}ctest --test-dir build` }) },
-  { id: "make", match: /(^|\/)(GNU)?[Mm]akefile$/, commands: (d, t) => ({ build: `${pre(d)}make`, test: /^test:/m.test(t) ? `${pre(d)}make test` : /^check:/m.test(t) ? `${pre(d)}make check` : undefined, lint: /^lint:/m.test(t) ? `${pre(d)}make lint` : undefined }) },
+  { id: "make", match: /(^|\/)(GNU)?[Mm]akefile$/, commands: (d, t) => runnerTargets(t, `${pre(d)}make `, true) },
+  { id: "just", match: /(^|\/)[Jj]ustfile$/, commands: (d, t) => runnerTargets(t, `${pre(d)}just `, false) },
   { id: "meson", match: /(^|\/)meson\.build$/, commands: (d) => ({ build: `${pre(d)}meson setup build && meson compile -C build`, test: `${pre(d)}meson test -C build` }) },
   { id: "bazel", match: /(^|\/)(MODULE\.bazel|WORKSPACE(\.bazel)?)$/, commands: (d) => ({ build: `${pre(d)}bazel build //...`, test: `${pre(d)}bazel test //...` }) },
   { id: "composer", match: /(^|\/)composer\.json$/, commands: (d, t) => ({ test: /phpunit/.test(t) ? `${pre(d)}vendor/bin/phpunit` : undefined }), frameworks: (t) => ["laravel", "symfony"].filter((k) => t.includes(k)) },
@@ -77,6 +91,10 @@ export function detectProfile(root: string, files: string[]): Profile {
     if (/(^|\/)(AGENTS|CLAUDE|GEMINI)\.md$|^\.github\/copilot-instructions\.md$|^\.cursorrules$|^\.clinerules/.test(f)) p.instructions.push(f);
     if (/^\.github\/workflows\/|^\.gitlab-ci\.yml$|^Jenkinsfile$|^\.circleci\/|^azure-pipelines\.yml$/.test(f)) p.ci.push(f);
   }
+  const RUNNERS = ["make", "just"]; // declared commands (targets, scripts) beat guessed defaults in the same folder
+  for (const r of p.buildSystems.filter((b) => RUNNERS.includes(b.id)))
+    for (const other of p.buildSystems.filter((b) => b.dir === r.dir && !RUNNERS.includes(b.id)))
+      for (const k of Object.keys(r.commands) as (keyof BuildSystem["commands"])[]) delete other.commands[k];
   p.languages = Object.entries(langs).sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ id, files: n }));
   p.buildSystems.sort((a, b) => a.dir.split("/").length - b.dir.split("/").length);
   p.frameworks = [...fw];
