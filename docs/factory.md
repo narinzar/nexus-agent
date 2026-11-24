@@ -1,8 +1,10 @@
 # Software factory
 
-Open any repository, run one command, and it is ready for agent work, by Nexus or by any other coding agent. Then
-hand it several tasks at once: each runs in its own branch and worktree, gets reviewed and checked, and is merged
-only when every gate passes.
+Nexus turns any repository into a software factory in three steps: **prepare** the repository (`nexus init`),
+**make a change** (`nexus run`, the agent described in [architecture.md](architecture.md)), and **make many changes
+safely** (`nexus factory run`). This guide covers steps 1 and 3: one command makes a repository ready for Nexus or any
+other coding agent, then several tasks run at once, each in its own branch and worktree, reviewed, checked, and
+merged only when every gate passes.
 
 ## New repository, start to finish
 

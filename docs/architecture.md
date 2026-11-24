@@ -1,6 +1,8 @@
 # Nexus-Agent architecture
 
-Nexus-Agent is a general-purpose software-engineering agent. It is meant for any language and build system, works
+Nexus-Agent turns any repository into a software factory: prepare the repository, make a change, make many changes
+safely. This document covers the agent at the centre of it, the part that makes one change (step 2); the factory
+around it is in [factory.md](factory.md). The agent is general-purpose. It is meant for any language and build system, works
 with any model provider, and treats the repository as a queryable knowledge system instead of text to paste into
 prompts.
 

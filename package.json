@@ -1,7 +1,7 @@
 {
   "name": "nexus-agent",
   "version": "0.1.0",
-  "description": "Language-agnostic, model-independent coding agent with a code index, a token-efficient context engine, self-review, and a software factory that runs tasks in parallel behind mechanical gates.",
+  "description": "Turn any repository into a software factory: describe changes in plain English, and Nexus makes them one at a time or in parallel, checks and reviews each, and keeps only those that pass. Any language, any AI model.",
   "keywords": [
     "coding-agent",
     "ai",
