@@ -1,11 +1,74 @@
 # Nexus-Agent
 
-**Start a project from a description, or hand over one you already have. Nexus builds it change by change, many in
-parallel, checks and reviews every change, and keeps the repository ready for whoever picks it up next, agent or
-person.**
+**Ship more code, spend far less on tokens. Nexus is a coding agent that builds software from a plain-English list of
+tasks, many at once, and keeps a change only when automatic checks pass, not when the AI says it is done.**
 
-Describe the work in plain English. Nexus works in any programming language with any AI model, and sends the model
-only the code a change needs, so each change costs less.
+You give it a project, or just a one-sentence idea. It writes a plan and a to-do list, then works through the list:
+each item on its own branch, items that touch different code in parallel. Every change is tested and reviewed, and
+merged only if every check passes; anything that fails is retried or set aside for you. The repository stays tidy
+enough for the next person or agent to pick it up cold.
+
+## Stop paying your agent to read your repository
+
+Most coding agents find their way by reading: search, open a file, open another, and so on. Every file they read is
+billed as input tokens, and stays in the conversation, billed again, on every later turn. You pay for the agent's
+exploration, not for the change.
+
+**Nexus reads your repository once, into an index**: every function, class, import and caller, across about 35 languages and config formats.
+For each task it looks up the few pieces of code that matter and sends only those. Less to read means fewer tokens,
+a smaller bill, and less noise for the model.
+
+**Measured on the same tasks, with the same model (Claude), against Claude Code**, using hidden tests the agent never
+sees ([full report](benchmarks/REPORT.md)):
+
+| | Claude Code | Nexus | Saving |
+|---|---|---|---|
+| **Focused changes** (9 tasks in 6 languages × 3 runs) | | | |
+| Input tokens per task | 214.8 K | **5.8 K** | **37× fewer** |
+| Cost per task | $0.174 | **$0.033** | **81% cheaper** |
+| Time per task | 17 s | **8 s** | **2× faster** |
+| Passed | 27/27 | **27/27** | same quality |
+| **Real repositories** (7 bug fixes and features in click, cobra and a Next.js site, × 3 runs) | | | |
+| Input tokens per task | 525.6 K | **139.3 K** | **3.8× fewer** |
+| Cost per task | $0.391 | **$0.243** | **38% cheaper** |
+| Time per task | 62 s | 66 s | about the same |
+| Passed | 17/21 | **18/21** | one more |
+
+**Bring a cheaper model and the savings multiply.** Nexus works with any model: Claude, OpenAI, Gemini, DeepSeek, or a
+local one. With DeepSeek V4.1 Flash it passed 25/27 focused changes at **$0.001 a task**, and 13/21 real-repository
+tasks at **$0.012 a task**, about 33× cheaper than Claude Code's $0.391. On those harder tasks it passes fewer, so use
+it where the price matters more than the last few percent.
+
+**From one sentence to a finished project for about 6 cents.** [examples/readlist](examples/README.md) is a Python
+command-line tool Nexus built from a single sentence with DeepSeek: 6 features, 31 passing tests, every commit and
+every decision recorded, including the two jobs its checks rejected and it then retried.
+
+## Why you can trust what it merges
+
+- **It does not take the AI's word for it.** A change merges only when tests, lint, typecheck and build pass, no risky
+  file (CI, deploy, auth, dependencies) was touched, and it merges cleanly. In the example run, an agent approved its
+  own work while a test was failing; the gate caught it.
+- **It reviews its own work.** Before finishing, the agent rereads its full diff against the task and fixes what it
+  finds.
+- **It never pushes.** Approved work is merged locally; publishing is your call.
+- **It keeps projects ready to hand over.** Any coding agent reads one set of instructions, there is a command for
+  every check, and the tests and README stay current. `nexus handover` checks all of this.
+
+## Three commands
+
+```bash
+nexus new "a CLI that keeps a reading list in a JSON file" --build --until-done
+```
+```bash
+nexus init
+```
+```bash
+nexus lanes backlog --until-done --budget 5
+```
+
+- `nexus new` starts a project from an idea: spec, to-do list, a working skeleton, then the features.
+- `nexus init` takes over a repository you already have.
+- `nexus lanes backlog --until-done` builds until the to-do list is finished, within your budget.
 
 ## How it works
 
@@ -27,19 +90,6 @@ the repository up cold:
 
 `nexus new` ends with this check. Every lanes job must keep the instructions true. The `build-for-handover` skill
 tells every agent how to build so the check keeps passing.
-
-**See it work:** [examples/](examples/README.md) has a Python CLI that Nexus built from one sentence (6 backlog items, 31
-tests, about $0.06 with DeepSeek), with every commit and job decision.
-
-**Results on real repositories** (7 tasks × 3 runs, hidden tests the agent never sees):
-
-| Configuration | Passed | Cost per task |
-|---|---|---|
-| Nexus with Claude | **18/21** | $0.24 |
-| Claude Code (baseline) | 17/21 | $0.39 |
-| Nexus with DeepSeek | 13/21 | **$0.012** |
-
-Full method and every run: [benchmarks/REPORT.md](benchmarks/REPORT.md).
 
 ## Install
 
