@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="506" viewBox="0 0 760 506" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+  <text x="16" y="24" font-size="17" font-weight="700" fill="#888">Same tasks, same model: Nexus against Claude Code, per task</text>
+  <rect x="16" y="38" width="14" height="14" rx="2" fill="#9a9a9a"/><text x="36" y="50" font-size="13" fill="#888">Claude Code</text>
+  <rect x="138.5" y="38" width="14" height="14" rx="2" fill="#2E9E5B"/><text x="158.5" y="50" font-size="13" fill="#888">Nexus</text>
+  <text x="16" y="84" font-size="15" font-weight="600" fill="#888">Focused changes: 9 tasks × 3 runs; passed 27/27 vs 27/27</text>
+  <text x="138" y="128" text-anchor="end" font-size="13" fill="#888">Input tokens</text>
+  <rect x="150" y="102" width="400.0" height="20" rx="3" fill="#9a9a9a"/>
+  <text x="558" y="117" font-size="12" fill="#888">214.8 K</text>
+  <rect x="150" y="126" width="10.8" height="20" rx="3" fill="#2E9E5B"/>
+  <text x="168.83131264110006" y="141" font-size="12" fill="#888">5.8 K</text>
+  <text x="744" y="129" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">37× fewer</text>
+  <text x="138" y="186" text-anchor="end" font-size="13" fill="#888">Cost</text>
+  <rect x="150" y="160" width="400.0" height="20" rx="3" fill="#9a9a9a"/>
+  <text x="558" y="175" font-size="12" fill="#888">$0.174</text>
+  <rect x="150" y="184" width="74.9" height="20" rx="3" fill="#2E9E5B"/>
+  <text x="232.90150779909604" y="199" font-size="12" fill="#888">$0.033</text>
+  <text x="744" y="187" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">81% cheaper</text>
+  <text x="138" y="244" text-anchor="end" font-size="13" fill="#888">Time</text>
+  <rect x="150" y="218" width="400.0" height="20" rx="3" fill="#9a9a9a"/>
+  <text x="558" y="233" font-size="12" fill="#888">17 s</text>
+  <rect x="150" y="242" width="188.9" height="20" rx="3" fill="#2E9E5B"/>
+  <text x="346.92152229696006" y="257" font-size="12" fill="#888">8 s</text>
+  <text x="744" y="245" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">2.1× faster</text>
+  <text x="16" y="302" font-size="15" font-weight="600" fill="#888">Real repositories: 7 tasks × 3 runs; passed 17/21 vs 18/21</text>
+  <text x="138" y="346" text-anchor="end" font-size="13" fill="#888">Input tokens</text>
+  <rect x="150" y="320" width="400.0" height="20" rx="3" fill="#9a9a9a"/>
+  <text x="558" y="335" font-size="12" fill="#888">525.6 K</text>
+  <rect x="150" y="344" width="106.0" height="20" rx="3" fill="#2E9E5B"/>
+  <text x="264.0316193093356" y="359" font-size="12" fill="#888">139.3 K</text>
+  <text x="744" y="347" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">3.8× fewer</text>
+  <text x="138" y="404" text-anchor="end" font-size="13" fill="#888">Cost</text>
+  <rect x="150" y="378" width="400.0" height="20" rx="3" fill="#9a9a9a"/>
+  <text x="558" y="393" font-size="12" fill="#888">$0.391</text>
+  <rect x="150" y="402" width="249.0" height="20" rx="3" fill="#2E9E5B"/>
+  <text x="406.95675084257624" y="417" font-size="12" fill="#888">$0.243</text>
+  <text x="744" y="405" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">38% cheaper</text>
+  <text x="138" y="462" text-anchor="end" font-size="13" fill="#888">Time</text>
+  <rect x="150" y="436" width="375.0" height="20" rx="3" fill="#9a9a9a"/>
+  <text x="533.0151828272994" y="451" font-size="12" fill="#888">62 s</text>
+  <rect x="150" y="460" width="400.0" height="20" rx="3" fill="#2E9E5B"/>
+  <text x="558" y="475" font-size="12" fill="#888">66 s</text>
+  <text x="744" y="463" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">about the same</text>
+</svg>

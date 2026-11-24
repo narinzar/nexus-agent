@@ -1,5 +1,14 @@
 # Nexus-Agent
 
+> **Nexus builds software from a plain-English to-do list, many tasks at once, and merges a change only when tests and
+> checks pass.**
+> It indexes your repository once and sends the AI only the code each task needs: against Claude Code, on the same
+> tasks with the same model, it used 37× fewer tokens and cost 81% less on focused changes, and 38% less on real
+> repositories, passing as many tasks or more.
+> It works with any model; with DeepSeek it built a whole project from one sentence for about 6 cents.
+
+![Nexus against Claude Code, same tasks and model: 37× fewer tokens, 81% cheaper and 2.1× faster on focused changes; 3.8× fewer tokens and 38% cheaper on real repositories](benchmarks/charts/savings.svg)
+
 **Ship more code, spend far less on tokens. Nexus is a coding agent that builds software from a plain-English list of
 tasks, many at once, and keeps a change only when automatic checks pass, not when the AI says it is done.**
 
@@ -26,7 +35,7 @@ sees ([full report](benchmarks/REPORT.md)):
 | **Focused changes** (9 tasks in 6 languages × 3 runs) | | | |
 | Input tokens per task | 214.8 K | **5.8 K** | **37× fewer** |
 | Cost per task | $0.174 | **$0.033** | **81% cheaper** |
-| Time per task | 17 s | **8 s** | **2× faster** |
+| Time per task | 17 s | **8 s** | **2.1× faster** |
 | Passed | 27/27 | **27/27** | same quality |
 | **Real repositories** (7 bug fixes and features in click, cobra and a Next.js site, × 3 runs) | | | |
 | Input tokens per task | 525.6 K | **139.3 K** | **3.8× fewer** |
@@ -38,6 +47,8 @@ sees ([full report](benchmarks/REPORT.md)):
 local one. With DeepSeek V4.1 Flash it passed 25/27 focused changes at **$0.001 a task**, and 13/21 real-repository
 tasks at **$0.012 a task**, about 33× cheaper than Claude Code's $0.391. On those harder tasks it passes fewer, so use
 it where the price matters more than the last few percent.
+
+![Cost per task on real repositories: Nexus with DeepSeek against Nexus with Claude and Claude Code](benchmarks/charts/large-cost.svg)
 
 **From one sentence to a finished project for about 6 cents.** [examples/readlist](examples/README.md) is a Python
 command-line tool Nexus built from a single sentence with DeepSeek: 6 features, 31 passing tests, every commit and
