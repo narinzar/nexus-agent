@@ -9,7 +9,8 @@
 > tasks with the same model, it used 37× fewer tokens and cost 81% less on focused changes; on real repositories it
 > was 50% cheaper and 1.6× faster, with about the same pass rate.
 >
-> It works with any model; with DeepSeek it built a whole project from one sentence for about 6 cents.
+> It works with any model; with DeepSeek it built 6 projects from one sentence each for about 9 cents apiece,
+> merging 53 of their 56 planned features.
 
 ![Nexus against Claude Code, same tasks and model: 37× fewer tokens, 81% cheaper and 2.1× faster on focused changes; 5.3× fewer tokens, 50% cheaper and 1.6× faster on real repositories](benchmarks/charts/savings.svg)
 
@@ -59,9 +60,13 @@ it where the price matters more than the last few percent.
 
 ![Cost per task on real repositories: Nexus with DeepSeek against Nexus with Claude and Claude Code](benchmarks/charts/large-cost.svg)
 
-**From one sentence to a finished project for about 6 cents.** [examples/readlist](examples/README.md) is a Python
-command-line tool Nexus built from a single sentence with DeepSeek: 6 features, 31 passing tests, every commit and
-every decision recorded, including the two jobs its checks rejected and it then retried.
+**From one sentence to a working project for about 9 cents.** In a benchmark of 6 one-sentence ideas in Python,
+TypeScript, Go, Rust and JavaScript, Nexus with DeepSeek planned each project, built it and worked through its backlog
+on its own. It merged 53 of the 56 planned features. Five of the six projects passed every check on a fresh clone,
+and three finished their backlog completely; the other three each left one item for a person. That came to $0.09 and
+about 10 minutes per project
+([results](benchmarks/REPORT.md#new-projects-from-one-sentence), [what went wrong](benchmarks/reports/2026-11-25-speed-and-new-projects.md)).
+[examples/readlist](examples/README.md) shows one such run in full: every command, commit and job decision.
 
 ## Why you can trust what it merges
 

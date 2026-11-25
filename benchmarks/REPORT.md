@@ -76,6 +76,23 @@ Passes per task (out of runs):
 
 ![cost vs quality](charts/small-cost-vs-quality.svg)
 
+## New projects from one sentence
+
+Each idea goes through `nexus new --build --until-done` (openrouter:deepseek/deepseek-v4.1-flash-1017). The result is then cloned fresh, set up from nothing, and every check and the handover check run on the clone. This measures whether the project is finished and works, not how good its design is. Source: [2026-11-25T01-54-42-new.json](results/2026-11-25T01-54-42-new.json).
+
+**3/6 projects finished** (fresh clone passes every check, backlog empty); 5/6 pass every check; 53/56 backlog items merged; total cost $0.53 ($0.089 per project); 10.1 min per project.
+
+| Idea | Language | Fresh clone passes | Items merged | Held | Jobs (merged/run) | Test files | Cost | Time | Stopped because |
+|---|---|---|---|---|---|---|---|---|---|
+| N1 | python | yes | 9/9 | 0 | 9/10 | 3 | $0.046 | 6.9 min | backlog finished after 2 round(s) |
+| N2 | typescript | yes | 6/7 | 1 | 6/9 | 1 | $0.067 | 10.7 min | only held items are left after 2 round(s) |
+| N3 | go | yes | 11/11 | 0 | 11/13 | 2 | $0.070 | 7.3 min | backlog finished after 4 round(s) |
+| N4 | rust | **no**: checks pass | 7/8 | 1 | 7/12 | 6 | $0.141 | 12.7 min | only held items are left after 3 round(s) |
+| N5 | javascript | yes | 8/9 | 1 | 8/11 | 2 | $0.067 | 9.6 min | only held items are left after 3 round(s) |
+| N6 | python | yes | 12/12 | 0 | 12/17 | 5 | $0.140 | 13.3 min | backlog finished after 5 round(s) |
+
+Ideas: [suites/new.json](suites/new.json).
+
 ## Earlier runs
 
 Development runs and runs replaced by a newer measurement of the same configuration, kept for history:
