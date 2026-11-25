@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Result } from "./run.ts";
+import type { NewResult } from "./new.ts";
 
 interface RunFile { file: string; suite: string; date: string; repeat: number; results: Result[]; complete: boolean }
 interface Agg { variant: string; runs: number; pass: number; requests: number; input: number; cacheRead: number; output: number; cost: number; costKnown: number; ms: number }
@@ -159,8 +160,22 @@ export function report(root: string) {
     fs.writeFileSync(path.join(chartsDir, "savings.svg"), savingsChart(panels.reverse(), "Claude Code", "Nexus"));
     out.splice(out.indexOf("**Method**"), 0, "![Nexus against Claude Code: tokens, cost and time per task](charts/savings.svg)", "");
   }
+  // ---- new projects from one sentence (`nexus bench new`) ----
+  const newest = files.filter((f) => f.suite === "new").pop();
+  if (newest) {
+    const rs = newest.results as unknown as NewResult[];
+    const sum = (k: keyof NewResult) => rs.reduce((t, r) => t + (r[k] as number), 0);
+    const ready = rs.filter((r) => r.ready).length, finished = rs.filter((r) => r.ready && r.open === 0).length;
+    out.push("## New projects from one sentence", "",
+      `Each idea goes through \`nexus new --build --until-done\` (${rs[0]?.model || "?"}). The result is then cloned fresh, set up from nothing, and every check and the handover check run on the clone. This measures whether the project is finished and works, not how good its design is. Source: [${newest.file}](results/${newest.file}).`, "",
+      `**${finished}/${rs.length} projects finished** (fresh clone passes every check, backlog empty); ${ready}/${rs.length} pass every check; ${sum("merged")}/${sum("items")} backlog items merged; total cost $${sum("cost").toFixed(2)} ($${(sum("cost") / rs.length).toFixed(3)} per project); ${(sum("ms") / rs.length / 60000).toFixed(1)} min per project.`, "",
+      "| Idea | Language | Fresh clone passes | Items merged | Held | Jobs (merged/run) | Test files | Cost | Time | Stopped because |", "|---|---|---|---|---|---|---|---|---|---|");
+    for (const r of [...rs].sort((x, y) => x.idea.localeCompare(y.idea))) out.push(`| ${r.idea} | ${r.lang} | ${r.ready ? "yes" : `**no**: ${r.failed.map((f) => f.split(":")[0]).join(", ")}`} | ${r.merged}/${r.items} | ${r.held} | ${r.jobsMerged}/${r.jobs} | ${r.testFiles} | $${r.cost.toFixed(3)} | ${(r.ms / 60000).toFixed(1)} min | ${r.stop || "-"} |`);
+    out.push("", "Ideas: [suites/new.json](suites/new.json).", "");
+  }
+
   out.push("## Earlier runs", "", "Single-run results from development (before repeats), kept for history:", "");
-  for (const f of files.filter((f) => f.repeat <= 1)) { const a = aggregate(f.results); out.push(`- [${f.file}](results/${f.file}) (${f.suite}): ${a.map((x) => `${short(x.variant)} ${x.pass}/${x.runs}`).join(", ")}`); }
+  for (const f of files.filter((f) => f.repeat <= 1 && f.suite !== "new")) { const a = aggregate(f.results); out.push(`- [${f.file}](results/${f.file}) (${f.suite}): ${a.map((x) => `${short(x.variant)} ${x.pass}/${x.runs}`).join(", ")}`); }
   const val = fs.readdirSync(dir).filter((f) => /validation/.test(f));
   if (val.length) out.push("", `Suite validation (tests fail with no change, pass with the upstream fix): ${val.map((f) => `[${f}](results/${f})`).join(", ")}.`);
   out.push("", "Narrative write-ups of those runs, including what changed between them: [reports/](reports/).", "");

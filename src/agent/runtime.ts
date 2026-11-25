@@ -86,6 +86,10 @@ export class Agent {
   }
 
   async run(task: string): Promise<RunReport> {
+    try { return await this.runTask(task); } finally { this.provider.close?.(); } // e.g. the long-lived claude-cli process
+  }
+
+  private async runTask(task: string): Promise<RunReport> {
     const t0 = Date.now();
     const report: RunReport = { session: this.session, task, level: classify(task), outcome: "", turns: 0, requests: 0, usage: emptyUsage(), tokensBySource: {}, firstRequestInput: 0, commands: [], filesShown: [], filesChanged: [], patchTokens: 0, verification: [], reviews: [], ms: 0, model: this.provider.model };
     const ctx = this.ctx;

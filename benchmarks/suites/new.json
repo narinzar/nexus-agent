@@ -1,0 +1,8 @@
+[
+  { "id": "N1", "lang": "python", "prompt": "A command-line tool in Python that keeps a personal reading list in a local JSON file: add a book, list books, mark a book as read, and show simple stats (total, read, unread)." },
+  { "id": "N2", "lang": "typescript", "prompt": "A TypeScript library with no runtime dependencies that parses durations like '1h30m' or '90s' into seconds and formats seconds back into that form, with a small command-line wrapper." },
+  { "id": "N3", "lang": "go", "prompt": "A Go command-line tool like wc: count lines, words and bytes for each file given, print a total line when there are several files, and offer flags to show only one of the counts." },
+  { "id": "N4", "lang": "rust", "prompt": "A Rust command-line tool that converts temperatures, lengths and weights between metric and imperial units, for example `convert 10 km mi`." },
+  { "id": "N5", "lang": "javascript", "prompt": "A Node.js HTTP JSON API with no dependencies that keeps to-do items in memory: create, list, update and delete items, with input validation and proper status codes." },
+  { "id": "N6", "lang": "python", "prompt": "A Python command-line tool that reads a CSV file of expenses (date, category, amount) and prints totals per category and per month, sorted by amount." }
+]

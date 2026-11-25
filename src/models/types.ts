@@ -22,7 +22,7 @@ export interface CompleteRequest {
 export interface CompleteResult { text: string; toolCalls: ToolCall[]; usage: Usage; model: string; stopReason?: string; ms: number }
 
 export interface Capabilities { nativeTools: boolean; caching: "explicit" | "automatic" | "implicit" | "none"; contextWindow: number }
-export interface Provider { id: string; model: string; capabilities: Capabilities; complete(req: CompleteRequest): Promise<CompleteResult> }
+export interface Provider { id: string; model: string; capabilities: Capabilities; complete(req: CompleteRequest): Promise<CompleteResult>; /** release long-lived resources (processes, sockets) */ close?(): void }
 
 /** Optional user-configured prices (USD per million tokens). Never guessed: cost is "unknown" without provider data or config. */
 export interface Price { input: number; output: number; cacheRead?: number; cacheWrite?: number }

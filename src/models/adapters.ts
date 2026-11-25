@@ -93,21 +93,70 @@ export function gemini(model: string, apiKey = process.env.GEMINI_API_KEY || pro
 
 /** The local Claude Code CLI as a plain completion endpoint (uses the user's existing login; no API key needed).
  *  Its own system prompt, tools, MCP servers and skill listing are switched off, leaving ~1.4K fixed tokens.
- *  Multi-turn conversations continue one CLI session (--resume), so earlier turns are served from the prompt cache. */
-export function claudeCli(model = ""): Provider {
+ *  A task's turns go to one long-lived CLI process that takes each new message as a stream, so each call skips process
+ *  start-up and session reload (measured: 1.7 s against 2.6 s per short call). Earlier turns are served from the prompt
+ *  cache either way. Set NEXUS_CLAUDE_CLI_STREAM=0 to start one process per call instead (with --resume). */
+export function claudeCli(model = ""): Provider & { close(): void } {
   const sessions = new Map<string, { id: string; turns: number; cost: number }>(); // cacheKey -> CLI session (cost so far)
+  const base = (sys: string) => ["-p", "--system-prompt", sys, "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands", ...(model ? ["--model", model] : [])];
+  const usageOf = (u: any, cost: number): Usage => ({ inputUncached: u.input_tokens || 0, cacheRead: u.cache_read_input_tokens || 0, cacheWrite: u.cache_creation_input_tokens || 0, output: u.output_tokens || 0, cost: { total: cost, source: "provider" } });
+
+  // ---- one long-lived process per conversation (cacheKey), fed with stream-json ----
+  type Live = { key: string; sys: string; p: ReturnType<typeof spawn>; turns: number; cost: number; buf: string; waiting: ((j: any) => void) | null; fail: ((e: Error) => void) | null; dead: boolean };
+  let live: Live | null = null;
+  const idle = (l: Live, on: boolean) => { for (const x of [l.p, l.p.stdin, l.p.stdout] as any[]) on ? x?.unref?.() : x?.ref?.(); };
+  const close = () => { if (live) { live.dead = true; live.p.stdin?.end(); live.p.kill(); live = null; } };
+  const start = (key: string, sys: string): Live => {
+    close();
+    const p = spawn("claude", [...base(sys), "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"], { stdio: ["pipe", "pipe", "pipe"] });
+    const l: Live = { key, sys, p, turns: 0, cost: 0, buf: "", waiting: null, fail: null, dead: false };
+    let err = "";
+    p.stderr!.on("data", (d) => (err += d));
+    p.stdout!.on("data", (d) => {
+      l.buf += d; let n;
+      while ((n = l.buf.indexOf("\n")) >= 0) {
+        const line = l.buf.slice(0, n); l.buf = l.buf.slice(n + 1);
+        let j: any; try { j = JSON.parse(line); } catch { continue; }
+        if (j.type === "result" && l.waiting) { const w = l.waiting; l.waiting = l.fail = null; w(j); }
+      }
+    });
+    const die = (e: Error) => { l.dead = true; if (l.fail) { const f = l.fail; l.waiting = l.fail = null; f(e); } };
+    p.on("error", die);
+    p.on("exit", (code) => die(new Error(`claude-cli exited (${code}): ${err.slice(-300)}`)));
+    live = l; return l;
+  };
+  const send = (l: Live, text: string, t0: number): Promise<CompleteResult> => new Promise((resolve, reject) => {
+    idle(l, false);
+    l.fail = reject;
+    l.waiting = (j) => {
+      idle(l, true);
+      if (j.is_error) { close(); return reject(new Error(`claude-cli: ${j.result || j.subtype}`)); }
+      const cumulative = j.total_cost_usd || 0, callCost = Math.max(0, cumulative - l.cost);
+      l.cost = cumulative; l.turns++;
+      resolve({ text: j.result || "", toolCalls: [], model: Object.keys(j.modelUsage || {})[0] || model, ms: Date.now() - t0, usage: usageOf(j.usage || {}, callCost) });
+    };
+    l.p.stdin!.write(JSON.stringify({ type: "user", message: { role: "user", content: text } }) + "\n");
+  });
+
   return {
     id: "claude-cli", model: model || "default", capabilities: { nativeTools: false, caching: "automatic", contextWindow: 200_000 },
+    close,
     complete(req) {
       const t0 = Date.now();
       const sys = req.system + (req.prefix ? `\n\n${req.prefix}` : "");
       const key = req.cacheKey || "";
+      const last = req.messages[req.messages.length - 1].content;
+      if (key && process.env.NEXUS_CLAUDE_CLI_STREAM !== "0") {
+        if (live && !live.dead && live.key === key && live.sys === sys && req.messages.length === live.turns * 2 + 1) return send(live, last, t0);
+        if (req.messages.length === 1) return send(start(key, sys), last, t0);
+        close(); // the conversation no longer matches the live process: fall back to a transcript below
+      }
       const known = key ? sessions.get(key) : undefined;
       // continue the CLI session when it already holds every earlier turn; otherwise start one (or fall back to a transcript)
       const canResume = !!known && req.messages.length === known.turns * 2 + 1;
-      const input = canResume || req.messages.length === 1 ? req.messages[req.messages.length - 1].content : req.messages.map((m) => `<${m.role}>\n${m.content}\n</${m.role}>`).join("\n\n") + "\n\nContinue as the assistant.";
+      const input = canResume || req.messages.length === 1 ? last : req.messages.map((m) => `<${m.role}>\n${m.content}\n</${m.role}>`).join("\n\n") + "\n\nContinue as the assistant.";
       const sessionArgs = !key ? ["--no-session-persistence"] : canResume ? ["--resume", known!.id] : ["--session-id", crypto.randomUUID()];
-      const args = ["-p", "--system-prompt", sys, "--tools", "", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands", ...sessionArgs, "--output-format", "json", ...(model ? ["--model", model] : [])];
+      const args = [...base(sys), ...sessionArgs, "--output-format", "json"];
       return new Promise((resolve, reject) => {
         const p = spawn("claude", args, { stdio: ["pipe", "pipe", "pipe"] });
         let out = "", err = "";
@@ -115,13 +164,13 @@ export function claudeCli(model = ""): Provider {
         p.on("error", reject);
         p.on("close", () => {
           try {
-            const j = JSON.parse(out); const u = j.usage || {};
+            const j = JSON.parse(out);
             if (j.is_error) return reject(new Error(`claude-cli: ${j.result || j.subtype}`));
             // a resumed CLI session reports its cumulative cost: record only this call's share
             const cumulative = j.total_cost_usd || 0;
             const callCost = canResume ? Math.max(0, cumulative - known!.cost) : cumulative;
             if (key) { const id = canResume ? known!.id : sessionArgs[1]; if (id && sessionArgs[0] !== "--no-session-persistence") sessions.set(key, { id, turns: canResume ? known!.turns + 1 : (req.messages.length === 1 ? 1 : 0), cost: cumulative }); }
-            resolve({ text: j.result || "", toolCalls: [], model: Object.keys(j.modelUsage || {})[0] || model, ms: Date.now() - t0, usage: { inputUncached: u.input_tokens || 0, cacheRead: u.cache_read_input_tokens || 0, cacheWrite: u.cache_creation_input_tokens || 0, output: u.output_tokens || 0, cost: { total: callCost, source: "provider" } } });
+            resolve({ text: j.result || "", toolCalls: [], model: Object.keys(j.modelUsage || {})[0] || model, ms: Date.now() - t0, usage: usageOf(j.usage || {}, callCost) });
           } catch { reject(new Error(`claude-cli failed: ${(err || out).slice(0, 400)}`)); }
         });
         p.stdin.end(input);

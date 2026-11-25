@@ -95,6 +95,13 @@ export async function benchCli(_root: string, args: string[], opt: (n: string, d
   const suiteArg = opt("--suite", "small")!;
   const suiteFile = fs.existsSync(suiteArg) ? suiteArg : path.join(HERE, "benchmarks/suites", `${suiteArg}.json`);
   if (args[0] === "report") { const { report } = await import("./report.ts"); return report(HERE); }
+  if (args[0] === "new") {
+    const { benchNew } = await import("./new.ts");
+    const all: import("./new.ts").Idea[] = JSON.parse(fs.readFileSync(path.join(HERE, "benchmarks/suites/new.json"), "utf8"));
+    const picked = args.slice(1).filter((x) => all.some((i) => i.id === x));
+    const ideas = picked.length ? all.filter((i) => picked.includes(i.id)) : all;
+    return benchNew({ ideas, model: opt("--model", "openrouter:deepseek/deepseek-v4.1-flash-1017")!, repeat: +(opt("--repeat", "1")!), budget: +(opt("--budget", "1")!), parallel: +(opt("--parallel", "3")!), resume: opt("--resume") });
+  }
   const all: Task[] = JSON.parse(fs.readFileSync(suiteFile, "utf8"));
   const suite = all.filter((t) => { const ok = available(t); if (!ok) console.error(`skip ${t.id}: repository not available (${t.git ? "set the environment variable in its path" : ""})`); return ok; });
   const repeat = +(opt("--repeat", "1")!);
