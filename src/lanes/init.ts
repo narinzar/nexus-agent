@@ -213,9 +213,14 @@ export async function init(root: string, opts: { dry?: boolean; agents?: string[
   put(".nexus/config.json", JSON.stringify(config, null, 2) + "\n");
   if (fs.existsSync(legacyConfigPath(root))) { written.push({ file: ".nexus/factory.json", action: "remove (moved to config.json)" }); if (!opts.dry) fs.rmSync(legacyConfigPath(root)); }
   // ignore Nexus's local state, keep its config
-  const gi = path.join(root, ".gitignore"), giText = fs.existsSync(gi) ? fs.readFileSync(gi, "utf8") : "";
-  if (!/^\.nexus\/\*$/m.test(giText)) put(".gitignore", giText.replace(/\s*$/, giText ? "\n" : "") + "\n# Nexus local state (index, logs, checkpoints, jobs); its config is shared\n.nexus/*\n!.nexus/config.json\n");
-  else if (!/^!\.nexus\/config\.json$/m.test(giText)) put(".gitignore", giText.replace(/^!\.nexus\/factory\.json$/m, "!.nexus/config.json").replace(/the factory config is shared/, "its config is shared") + (/^!\.nexus\/factory\.json$/m.test(giText) ? "" : "!.nexus/config.json\n"));
+  const gi = path.join(root, ".gitignore");
+  // a rule that ignores the whole .nexus folder ("/.nexus/", ".nexus") hides config.json for good: git cannot
+  // un-ignore a file inside an ignored folder, so such lines are removed and replaced by the block below
+  const giBefore = fs.existsSync(gi) ? fs.readFileSync(gi, "utf8") : "";
+  let giText = giBefore.replace(/^\/?\.nexus\/?[ \t]*(\n|$)/gm, "");
+  if (!/^\.nexus\/\*$/m.test(giText)) giText = giText.replace(/\s*$/, giText ? "\n" : "") + "\n# Nexus local state (index, logs, checkpoints, jobs); its config is shared\n.nexus/*\n!.nexus/config.json\n";
+  else if (!/^!\.nexus\/config\.json$/m.test(giText)) giText = giText.replace(/^!\.nexus\/factory\.json$/m, "!.nexus/config.json").replace(/the factory config is shared/, "its config is shared") + (/^!\.nexus\/factory\.json$/m.test(giText) ? "" : "!.nexus/config.json\n");
+  if (giText !== giBefore) put(".gitignore", giText);
   // git: identity and an attribution guard, local to this clone
   if (fs.existsSync(path.join(root, ".git"))) {
     if (me.git.name && me.git.email && !opts.dry) { spawnSync("git", ["config", "user.name", me.git.name], { cwd: root }); spawnSync("git", ["config", "user.email", me.git.email], { cwd: root }); notes.push(`git identity for this clone: ${me.git.name} <${me.git.email}>`); }
@@ -251,6 +256,9 @@ export function validate(root: string): { level: "error" | "warn" | "ok"; msg: s
   const out: { level: "error" | "warn" | "ok"; msg: string }[] = [];
   const c = readConfig(root);
   if (!c) return [{ level: "error", msg: "no .nexus/config.json: run `nexus init`" }];
+  const ignored = spawnSync("git", ["check-ignore", "-v", ".nexus/config.json"], { cwd: root, encoding: "utf8" });
+  // check-ignore -v also reports a matching "!" rule, which means the file is kept, not ignored
+  if (ignored.status === 0 && !/:!/.test(ignored.stdout.split("\t")[0])) out.push({ level: "error", msg: `.nexus/config.json is ignored by git (${ignored.stdout.trim().split("\t")[0]}), so other clones and job worktrees never get it: run \`nexus init\`` });
   const agents = path.join(root, "AGENTS.md");
   if (!fs.existsSync(agents)) out.push({ level: "error", msg: "AGENTS.md missing" });
   else {

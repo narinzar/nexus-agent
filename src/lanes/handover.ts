@@ -24,7 +24,9 @@ export async function handoverCheck(root: string, o: { requireSpec?: boolean; ru
   const add = (name: string, ok: boolean, detail: string) => out.push({ name, ok, detail });
 
   const v = cfg ? validate(root).filter((x) => x.level === "error") : [];
-  add("agent instructions", !!cfg && !v.length, !cfg ? "no .nexus/config.json: run `nexus init`" : v.length ? v.map((x) => x.msg).join("; ") : "AGENTS.md matches the repository");
+  // the config must be in git, not only on this disk: other clones and job worktrees read it from the repository
+  const trackedCfg = files.includes(".nexus/config.json") || files.includes(".nexus/factory.json");
+  add("agent instructions", !!cfg && !v.length && trackedCfg, !cfg ? "no .nexus/config.json: run `nexus init`" : v.length ? v.map((x) => x.msg).join("; ") : !trackedCfg ? ".nexus/config.json is not committed" : "AGENTS.md matches the repository");
 
   const cmds = cfg?.commands || [], kinds = cmds.map((c) => c.kind);
   add("check commands", kinds.includes("test"), kinds.length ? `found: ${[cfg?.setup && "setup", ...new Set(kinds)].filter(Boolean).join(", ")}${kinds.includes("test") ? "" : "; no test command"}` : "none detected: add scripts for setup, test, lint");

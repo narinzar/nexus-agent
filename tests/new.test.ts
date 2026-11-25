@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { init } from "../src/lanes/init.ts";
+import { init, validate } from "../src/lanes/init.ts";
 import { handoverCheck, ready } from "../src/lanes/handover.ts";
 import { createProject } from "../src/lanes/new.ts";
 
@@ -83,4 +83,22 @@ test("commands: Makefile targets win over guessed defaults; Python runs in its u
   cfg.commands.push({ kind: "test", cmd: "make test-fast", evidence: "owner" }); fs.writeFileSync(cfgFile, JSON.stringify(cfg));
   r = await init(dir, { dry: true });
   assert.deepEqual(r.config.commands.filter((c) => c.kind === "test").map((c) => c.cmd), ["make test-fast"]);
+});
+
+test("a .gitignore that hides the whole .nexus folder is repaired, and the handover check requires the config in git", async () => {
+  useProfile();
+  const dir = tmp("nexus-gi-"); execFileSync("git", ["init", "-q"], { cwd: dir });
+  for (const [f, c] of Object.entries(SKELETON)) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), c + "\n"); }
+  fs.writeFileSync(path.join(dir, ".gitignore"), "/target/\n\n# Tool state\n/.nexus/\n");
+  await init(dir);
+  const gi = fs.readFileSync(path.join(dir, ".gitignore"), "utf8");
+  assert.doesNotMatch(gi, /^\/\.nexus\/$/m); assert.match(gi, /^!\.nexus\/config\.json$/m);
+  commitAll(dir);
+  assert.ok(execFileSync("git", ["ls-files"], { cwd: dir, encoding: "utf8" }).includes(".nexus/config.json"));
+  // an agent adds the folder rule back: validate and the handover check both catch it
+  fs.appendFileSync(path.join(dir, ".gitignore"), "/.nexus/\n");
+  execFileSync("git", ["rm", "-q", "--cached", ".nexus/config.json"], { cwd: dir }); commitAll(dir);
+  const cs = await handoverCheck(dir, { runChecks: false });
+  assert.ok(!cs.find((c) => c.name === "agent instructions")!.ok);
+  assert.ok(validate(dir).some((v) => v.level === "error" && /ignored by git/.test(v.msg)));
 });
