@@ -18,7 +18,7 @@ export interface RunOptions { maxCost?: number; mode?: "auto" | "plan"; permissi
 export interface RunReport {
   session: string; task: string; level: number; outcome: string; summary?: string;
   turns: number; requests: number; usage: Usage; tokensBySource: Record<string, number>; firstRequestInput: number;
-  commands: string[]; filesShown: string[]; filesChanged: string[]; patchTokens: number; verification: string[]; reviews: string[]; ms: number; model: string;
+  commands: string[]; filesShown: string[]; filesChanged: string[]; patchTokens: number; verification: string[]; reviews: string[]; ms: number; model: string; servedModel?: string;
 }
 
 /** Deterministic first guess at task size; the loop escalates on its own when the working set is not enough. */
@@ -123,6 +123,7 @@ export class Agent {
       report.requests++; report.usage = addUsage(report.usage, res.usage);
       if (turn === 1) report.firstRequestInput = totalInput(res.usage);
       const overBudget = this.opts.maxCost !== undefined && (report.usage.cost?.total || 0) > this.opts.maxCost;
+      if (res.model && res.model !== "default") report.servedModel = res.model;
       ctx.record({ bySource: { system: Math.ceil(ctx.system.length / 4), project: Math.ceil(ctx.prefix().length / 4), ...bySource }, usage: res.usage, model: res.model, ms: res.ms });
       this.safety.log({ type: "model", turn, usage: res.usage, ms: res.ms, chars: res.text.length });
       this.log(`turn ${turn}: in ${totalInput(res.usage)} (cached ${res.usage.cacheRead}) out ${res.usage.output}`);

@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 interface Task { id: string; fixture?: string; git?: string; repo?: string; commit?: string; fix?: string; hiddenFromFix?: string[]; link?: string[]; lang: string; level: number; prompt: string; gold: string[]; hidden?: Record<string, string>; accept: string }
-export interface Result { run?: number; task: string; variant: string; lang: string; level: number; requests: number; firstInput: number; totalInput: number; uncached: number; cacheRead: number; cacheWrite: number; output: number; cost: number | null; ms: number; changed: string[]; goldEdited: number; accept: "pass" | "fail"; acceptOut?: string; outcome: string }
+export interface Result { run?: number; task: string; variant: string; lang: string; level: number; requests: number; firstInput: number; totalInput: number; uncached: number; cacheRead: number; cacheWrite: number; output: number; cost: number | null; ms: number; changed: string[]; goldEdited: number; accept: "pass" | "fail"; acceptOut?: string; outcome: string; /** the model that actually answered, as the provider reported it */ servedModel?: string }
 
 const sh = (cmd: string, cwd: string, timeout = 900_000) => spawnSync("bash", ["-lc", cmd], { cwd, encoding: "utf8", timeout, maxBuffer: 1 << 27 });
 
@@ -48,7 +48,7 @@ function runNexus(t: Task, dir: string, model: string, maxCost: string, review: 
   if (!r.stdout.includes("{")) throw new Error((r.stderr || "no output").slice(-400));
   const j = JSON.parse(r.stdout.slice(r.stdout.indexOf("{")));
   const u = j.usage;
-  return { requests: j.requests, firstInput: j.firstRequestInput, totalInput: u.inputUncached + u.cacheRead + u.cacheWrite, uncached: u.inputUncached, cacheRead: u.cacheRead, cacheWrite: u.cacheWrite, output: u.output, cost: u.cost?.source === "unknown" ? null : u.cost.total, outcome: `${j.outcome}${j.summary ? ": " + j.summary.slice(0, 80) : ""}` };
+  return { requests: j.requests, firstInput: j.firstRequestInput, totalInput: u.inputUncached + u.cacheRead + u.cacheWrite, uncached: u.inputUncached, cacheRead: u.cacheRead, cacheWrite: u.cacheWrite, output: u.output, cost: u.cost?.source === "unknown" ? null : u.cost.total, servedModel: j.servedModel, outcome: `${j.outcome}${j.summary ? ": " + j.summary.slice(0, 80) : ""}` };
 }
 
 function runClaudeCode(t: Task, dir: string, model: string): Partial<Result> {
@@ -59,7 +59,7 @@ function runClaudeCode(t: Task, dir: string, model: string): Partial<Result> {
   for (const l of (r.stdout || "").split("\n")) { let e: any; try { e = JSON.parse(l); } catch { continue; } if (e.type === "assistant" && e.message?.id) req.set(e.message.id, e.message.usage); if (e.type === "result") res = e; }
   const us = [...req.values()]; const sum = (k: string) => us.reduce((a, x) => a + (x?.[k] || 0), 0);
   const tot = (x: any) => (x?.input_tokens || 0) + (x?.cache_read_input_tokens || 0) + (x?.cache_creation_input_tokens || 0);
-  return { requests: req.size, firstInput: tot(us[0]), totalInput: us.reduce((a, x) => a + tot(x), 0), uncached: sum("input_tokens"), cacheRead: sum("cache_read_input_tokens"), cacheWrite: sum("cache_creation_input_tokens"), output: sum("output_tokens"), cost: res?.total_cost_usd ?? null, outcome: res?.subtype || "no result" };
+  return { requests: req.size, firstInput: tot(us[0]), totalInput: us.reduce((a, x) => a + tot(x), 0), uncached: sum("input_tokens"), cacheRead: sum("cache_read_input_tokens"), cacheWrite: sum("cache_creation_input_tokens"), output: sum("output_tokens"), cost: res?.total_cost_usd ?? null, servedModel: Object.keys(res?.modelUsage || {}).join(",") || undefined, outcome: res?.subtype || "no result" };
 }
 
 /** Deterministic retrieval benchmark (no model): does the first request's packed context contain the gold files? */
