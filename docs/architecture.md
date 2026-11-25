@@ -104,7 +104,7 @@ boundary is enforced in the tool layer.
 Everything below is implemented and tested (`npm run check`). End-to-end results are in
 [benchmarks/REPORT.md](../benchmarks/REPORT.md). On focused changes in 6 languages (3 runs each), Nexus passed 27/27
 with 37× fewer input tokens, 3.6× fewer requests and 81% lower cost than stock Claude Code with the same model. On
-real-repository tasks it passed 18/21 against Claude Code's 17/21, at 38% lower cost.
+real-repository tasks (measured 2026-11-25) it was 50% cheaper and 1.6× faster, passing 17/21 against Claude Code's 18/21.
 
 1. `nexus index | status | doctor`: detection and a multi-language index (L0 + L1) in SQLite. Queries: `find`, `ctx`,
    `refs`, `show`, `map`, `locate`, `impact`.

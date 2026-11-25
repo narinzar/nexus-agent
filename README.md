@@ -6,12 +6,12 @@
 > checks pass.**
 >
 > It indexes your repository once and sends the AI only the code each task needs: against Claude Code, on the same
-> tasks with the same model, it used 37× fewer tokens and cost 81% less on focused changes, and 38% less on real
-> repositories, passing as many tasks or more.
+> tasks with the same model, it used 37× fewer tokens and cost 81% less on focused changes; on real repositories it
+> was 50% cheaper and 1.6× faster, with about the same pass rate.
 >
 > It works with any model; with DeepSeek it built a whole project from one sentence for about 6 cents.
 
-![Nexus against Claude Code, same tasks and model: 37× fewer tokens, 81% cheaper and 2.1× faster on focused changes; 3.8× fewer tokens and 38% cheaper on real repositories](benchmarks/charts/savings.svg)
+![Nexus against Claude Code, same tasks and model: 37× fewer tokens, 81% cheaper and 2.1× faster on focused changes; 5.3× fewer tokens, 50% cheaper and 1.6× faster on real repositories](benchmarks/charts/savings.svg)
 
 ## How it works
 
@@ -47,14 +47,14 @@ sees ([full report](benchmarks/REPORT.md)):
 | Time per task | 17 s | **8 s** | **2.1× faster** |
 | Passed | 27/27 | **27/27** | same quality |
 | **Real repositories** (7 bug fixes and features in click, cobra and a Next.js site, × 3 runs) | | | |
-| Input tokens per task | 525.6 K | **139.3 K** | **3.8× fewer** |
-| Cost per task | $0.391 | **$0.243** | **38% cheaper** |
-| Time per task | 62 s | 66 s | about the same |
-| Passed | 17/21 | **18/21** | one more |
+| Input tokens per task | 520.9 K | **98.4 K** | **5.3× fewer** |
+| Cost per task | $0.411 | **$0.204** | **50% cheaper** |
+| Time per task | 69 s | **43 s** | **1.6× faster** |
+| Passed | **18/21** | 17/21 | one fewer (within run-to-run variation) |
 
 **Bring a cheaper model and the savings multiply.** Nexus works with any model: Claude, OpenAI, Gemini, DeepSeek, or a
 local one. With DeepSeek V4.1 Flash it passed 25/27 focused changes at **$0.001 a task**, and 13/21 real-repository
-tasks at **$0.012 a task**, about 33× cheaper than Claude Code's $0.391. On those harder tasks it passes fewer, so use
+tasks at **$0.012 a task**, about 34× cheaper than Claude Code's $0.411. On those harder tasks it passes fewer, so use
 it where the price matters more than the last few percent.
 
 ![Cost per task on real repositories: Nexus with DeepSeek against Nexus with Claude and Claude Code](benchmarks/charts/large-cost.svg)

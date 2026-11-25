@@ -21,23 +21,23 @@
   <rect x="150" y="242" width="188.9" height="20" rx="3" fill="#2E9E5B"/>
   <text x="346.92152229696006" y="257" font-size="12" fill="#888">8 s</text>
   <text x="744" y="245" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">2.1× faster</text>
-  <text x="16" y="302" font-size="15" font-weight="600" fill="#888">Real repositories: 7 tasks × 3 runs; passed 17/21 vs 18/21</text>
+  <text x="16" y="302" font-size="15" font-weight="600" fill="#888">Real repositories: 7 tasks × 3 runs; passed 18/21 vs 17/21</text>
   <text x="138" y="346" text-anchor="end" font-size="13" fill="#888">Input tokens</text>
   <rect x="150" y="320" width="400.0" height="20" rx="3" fill="#9a9a9a"/>
-  <text x="558" y="335" font-size="12" fill="#888">525.6 K</text>
-  <rect x="150" y="344" width="106.0" height="20" rx="3" fill="#2E9E5B"/>
-  <text x="264.0316193093356" y="359" font-size="12" fill="#888">139.3 K</text>
-  <text x="744" y="347" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">3.8× fewer</text>
+  <text x="558" y="335" font-size="12" fill="#888">520.9 K</text>
+  <rect x="150" y="344" width="75.6" height="20" rx="3" fill="#2E9E5B"/>
+  <text x="233.554174977105" y="359" font-size="12" fill="#888">98.4 K</text>
+  <text x="744" y="347" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">5.3× fewer</text>
   <text x="138" y="404" text-anchor="end" font-size="13" fill="#888">Cost</text>
   <rect x="150" y="378" width="400.0" height="20" rx="3" fill="#9a9a9a"/>
-  <text x="558" y="393" font-size="12" fill="#888">$0.391</text>
-  <rect x="150" y="402" width="249.0" height="20" rx="3" fill="#2E9E5B"/>
-  <text x="406.95675084257624" y="417" font-size="12" fill="#888">$0.243</text>
-  <text x="744" y="405" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">38% cheaper</text>
+  <text x="558" y="393" font-size="12" fill="#888">$0.411</text>
+  <rect x="150" y="402" width="198.7" height="20" rx="3" fill="#2E9E5B"/>
+  <text x="356.65269104869446" y="417" font-size="12" fill="#888">$0.204</text>
+  <text x="744" y="405" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">50% cheaper</text>
   <text x="138" y="462" text-anchor="end" font-size="13" fill="#888">Time</text>
-  <rect x="150" y="436" width="375.0" height="20" rx="3" fill="#9a9a9a"/>
-  <text x="533.0151828272994" y="451" font-size="12" fill="#888">62 s</text>
-  <rect x="150" y="460" width="400.0" height="20" rx="3" fill="#2E9E5B"/>
-  <text x="558" y="475" font-size="12" fill="#888">66 s</text>
-  <text x="744" y="463" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">about the same</text>
+  <rect x="150" y="436" width="400.0" height="20" rx="3" fill="#9a9a9a"/>
+  <text x="558" y="451" font-size="12" fill="#888">69 s</text>
+  <rect x="150" y="460" width="245.6" height="20" rx="3" fill="#2E9E5B"/>
+  <text x="403.5735655720853" y="475" font-size="12" fill="#888">43 s</text>
+  <text x="744" y="463" text-anchor="end" font-size="15" font-weight="700" fill="#2E9E5B">1.6× faster</text>
 </svg>
